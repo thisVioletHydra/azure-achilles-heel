@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#102d3d" />
+    <meta name="description" content="Azure Achilles’ Heel — a little escape above the clouds. An interactive journey through a floating world." />
+    <title>Azure Achilles’ Heel — Above the ordinary</title>
+    <link rel="stylesheet" href="/src/style.css" />
+    <link rel="preload" as="image" href="/assets/sky.webp" fetchpriority="high" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <main id="experience" data-place="threshold">
+      <div class="intro-curtain" aria-hidden="true">
+        <div class="intro-plate" style="--slice:0"><div class="intro-sky"></div></div>
+        <div class="intro-plate" style="--slice:1"><div class="intro-sky"></div></div>
+        <div class="intro-plate" style="--slice:2"><div class="intro-sky"></div></div>
+        <div class="intro-caption"><span>AZURE</span><small>ABOVE THE ORDINARY</small></div>
+      </div>
+      <div class="sky" aria-hidden="true"></div>
+      <div class="sky-shade" aria-hidden="true"></div>
+      <canvas id="world" aria-label="A floating island above the clouds, with a blonde heroine in shining armor whose blue cape moves in the wind"></canvas>
+      <div class="vignette" aria-hidden="true"></div>
+      <div class="grain" aria-hidden="true"></div>
+      <div class="flight-wash" aria-hidden="true"></div>
+
+      <header class="header">
+        <a class="brand" href="#" aria-label="Azure Achilles’ Heel, return to the beginning">
+          <svg class="brand-mark" width="37" height="37" viewBox="0 0 40 40" fill="none" aria-hidden="true"><path d="M20 2 23 15 38 20 23 24 20 38 16 24 2 20 16 15Z" stroke="currentColor"/><path d="m9 9 11 6 11-6-6 11 6 11-11-6-11 6 6-11Z" stroke="currentColor" opacity=".5"/></svg>
+          <span>AZURE<span class="brand-sub">ACHILLES’ HEEL</span></span>
+        </a>
+        <nav aria-label="Main navigation">
+          <button class="nav-link active" data-action="home">The world<span></span></button>
+          <button class="nav-link" data-action="realms">The realms<span></span></button>
+          <button class="nav-link" data-action="story">Our story<span></span></button>
+        </nav>
+        <div class="header-tools">
+          <button class="header-explore" data-action="journey">Enter the world <span>↗</span></button>
+        </div>
+      </header>
+
+      <section class="hero" aria-labelledby="hero-title">
+        <p class="eyebrow"><span></span>A LITTLE ESCAPE ABOVE THE CLOUDS</p>
+        <h1 id="hero-title">Somewhere<br/>beyond <em>ordinary.</em></h1>
+        <p class="hero-description">Leave the familiar behind.<br/>There’s a whole world waiting in the sky.</p>
+        <div class="hero-actions">
+          <button class="primary-button" data-action="journey">Start your journey <span>↗</span></button>
+          <button class="film-button" data-action="film"><span class="play-icon">▷</span> A glimpse of Azure <span class="film-time">01:24</span></button>
+        </div>
+        <p class="hero-note"><span class="tiny-star">✧</span> No destination. Just a little wonder.</p>
+      </section>
+
+      <button class="island-label" data-action="journey" aria-label="Visit the floating city of Aetheria"><span class="label-dot"></span><span>AETHERIA<span class="label-sub">The city that forgot to fall</span></span><span class="label-arrow">↗</span></button>
+
+      <aside class="chapter-rail" aria-label="Journey chapters">
+        <button class="chapter active" data-action="home" aria-label="Chapter 1, The threshold"><span>01</span><i></i></button>
+        <button class="chapter" data-action="journey" aria-label="Chapter 2, The arrival"><span>02</span><i></i></button>
+        <button class="chapter" data-action="left" aria-label="Chapter 3, The observatory"><span>03</span><i></i></button>
+        <span class="rail-label">FOLLOW YOUR WONDER</span>
+      </aside>
+
+      <footer class="footer">
+        <button class="realm-preview" data-action="realms"><span class="realm-image"></span><span><span class="realm-kicker">YOUR NEXT CHAPTER</span><strong>A world without edges</strong><span class="realm-description">Three places. A thousand ways to get lost.</span></span><span class="realm-arrow">↗</span></button>
+        <span class="pointer-hint"><span class="mouse-icon"></span> MOVE SLOWLY. LOOK AROUND.</span>
+        <div class="coordinates"><span>38° 42′ N &nbsp; 09° 08′ W</span><span>SOMEWHERE ABOVE EVERYTHING</span></div>
+      </footer>
+
+      <section class="arrival" aria-labelledby="arrival-title" hidden>
+        <p class="eyebrow"><span></span><span id="arrival-eyebrow">CHAPTER II — THE ARRIVAL</span></p>
+        <h2 id="arrival-title">Stay a little.<br/><em>The sky can wait.</em></h2>
+        <p id="arrival-description">You made it to the heart of Aetheria.<br/>Take a breath. Then follow your curiosity.</p>
+        <div class="path-options"><button data-action="left"><span>↖</span><span>The observatory<small>FOLLOW THE STARS</small></span></button><button data-action="right"><span>↗</span><span>The quiet garden<small>FOLLOW THE LIGHT</small></span></button></div>
+        <button class="back-button" data-action="home">← Back to the clouds</button>
+      </section>
+      <div class="travel-status" role="status" aria-live="polite"></div>
+      <p class="render-fallback" hidden>Your browser couldn’t open the 3D world. You can still explore Azure’s story and realms.</p>
+    </main>
+
+    <dialog id="realms-dialog" class="editorial-dialog">
+      <button class="dialog-close" aria-label="Close realms">✕</button><p class="eyebrow">AN ATLAS OF IMPOSSIBLE PLACES</p><h2>Follow your <em>wonder.</em></h2><p class="dialog-intro">Nothing here needs to make sense. It only needs to make you feel something.</p>
+      <div class="realm-list"><button data-action="journey"><span class="realm-number">01</span><span><strong>Aetheria</strong><small>A city held together by light, water, and a stubborn refusal to fall.</small></span><span>↗</span></button><button data-action="left"><span class="realm-number">02</span><span><strong>The observatory</strong><small>For those who have always felt a little closer to the stars.</small></span><span>↗</span></button><button data-action="right"><span class="realm-number">03</span><span><strong>The quiet garden</strong><small>A place to do absolutely nothing. Beautifully.</small></span><span>↗</span></button></div>
+    </dialog>
+    <dialog id="story-dialog" class="editorial-dialog story-dialog"><button class="dialog-close" aria-label="Close story">✕</button><p class="eyebrow">AZURE ACHILLES’ HEEL</p><h2>Our weakness?<br/><em>A little wonder.</em></h2><p>Some worlds are built to sell you something.<br/>This one was built to take you somewhere.</p><p>Azure is a small experiment in the impossible: a floating city, a traveller, and a moment where you forget you’re looking at a screen.</p><div class="story-signature">Made of curiosity. Held up by imagination.</div><button class="primary-button" data-action="journey">Find your way in <span>↗</span></button></dialog>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
