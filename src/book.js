@@ -129,9 +129,9 @@ export function createBook(onExit) {
   }
   stage.addEventListener('touchstart', (event) => {
     if (!compactLayout.matches || !isOpen || isClosing || turn || !root.classList.contains('reading-ready')) return;
-    if (event.touches[0].clientX < 24 || event.touches[0].clientX > innerWidth - 24) event.preventDefault();
+    if (event.touches.length > 1 || event.touches[0].clientX < 24 || event.touches[0].clientX > innerWidth - 24) event.preventDefault();
     const point = touchCenter(event.touches);
-    touchGesture = { ...point, lastX: point.x, count: event.touches.length, horizontal: false, pinch: false };
+    touchGesture = { ...point, lastX: point.x, count: event.touches.length, cameraSide, horizontal: false, pinch: false };
   }, { passive: false });
   stage.addEventListener('touchmove', (event) => {
     if (!touchGesture || event.touches.length !== touchGesture.count) return;
@@ -149,12 +149,16 @@ export function createBook(onExit) {
     if (!touchGesture) return;
     const gesture = touchGesture;
     if (event.changedTouches.length === gesture.count) gesture.lastX = touchCenter(event.changedTouches).x;
+    if (event.touches.length > 0) return;
     touchGesture = null;
     if (!gesture.horizontal || gesture.pinch || turn || isClosing) return;
     event.preventDefault();
     suppressClickUntil = performance.now() + 400;
     const dx = gesture.lastX - gesture.x;
-    if (Math.abs(dx) >= 28) navigate(dx < 0 ? 1 : -1);
+    if (Math.abs(dx) >= 28) {
+      cameraSide = gesture.cameraSide;
+      navigate(dx < 0 ? 1 : -1);
+    }
   }, { passive: false });
   stage.addEventListener('touchcancel', () => { touchGesture = null; });
 
@@ -526,6 +530,7 @@ export function createBook(onExit) {
     const direction = Number(grip.dataset.direction);
     grip.addEventListener('click', (event) => { if (event.detail === 0) flip(direction); });
     grip.addEventListener('pointerdown', (event) => {
+      if (event.pointerType === 'touch') return;
       if (event.button !== 0 || !createTurn(direction)) return;
       grip.setPointerCapture(event.pointerId);
       drag = { start: event.clientX, direction, time: performance.now(), settling: false };
