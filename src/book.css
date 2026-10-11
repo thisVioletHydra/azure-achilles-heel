@@ -222,3 +222,8 @@
 /* A small lift at the edge, with a restrained reverse-paper shadow. */
 @media(min-width:1101px){.page-grip{width:76px;height:84px}.book .page-grip:before{transition:opacity .18s;opacity:0}.hover-right .grip-right:before,.hover-left .grip-left:before,.book .page-grip:hover:before,.book .page-grip:focus-visible:before{opacity:1}.book:has(.turn-leaf) .page-grip:before{opacity:0}}
 .chapter-copy h2{letter-spacing:0;line-height:1.1}
+/* The leather spine wraps around the tail of the sewn paper block. */
+.cover-binding{position:absolute;left:-2px;bottom:-20px;width:32px;height:35px;pointer-events:none;background:linear-gradient(90deg,#102b35 0%,#31535f 24%,#486b74 43%,#173b47 73%,#102e38);border-radius:0 0 15px 13px;border-left:1px solid #87a4a15c;border-bottom:2px solid #112e38;box-shadow:2px 3px 4px #0c242c55;transform:translateZ(-1px)}
+.cover-binding:before{content:'';position:absolute;left:15px;right:1px;top:12px;height:7px;border-radius:0 0 7px 5px;background:repeating-linear-gradient(95deg,#cdb686 0 2px,#304d58 2px 4px,#f1dfb4 4px 5px);box-shadow:inset 0 1px 2px #122f3970,0 1px 1px #fff4d54a}
+.cover-binding:after{content:'';position:absolute;inset:0 11px 1px 1px;border-radius:0 0 12px 12px;background:linear-gradient(90deg,#122e39,#466977 45%,#234752 80%);border-right:1px solid #93aaa33b;box-shadow:inset 0 -2px 3px #061d2d70}
+@media(max-width:1100px){.cover-binding{bottom:-17px;height:31px;width:27px}.cover-binding:before{left:13px;top:11px;height:6px}.cover-binding:after{right:9px}}
