@@ -146,8 +146,8 @@ export function createBook(onExit) {
         const offset = side === 'front' ? i : count - 1 - i;
         const column = direction > 0 ? offset : count - 1 - offset;
         content.style.left = `${-column * width / count}px`;
-        if (column === 0) surface.style.borderRadius = '12px 0 0 12px';
-        if (column === count - 1) surface.style.borderRadius = '0 12px 12px 0';
+        if (column === 0 && original.classList.contains('page-illustration')) surface.style.borderRadius = '12px 0 0 12px';
+        if (column === count - 1 && original.classList.contains('page-reading')) surface.style.borderRadius = '0 12px 12px 0';
         surface.append(content);
         slice.append(surface);
       }
