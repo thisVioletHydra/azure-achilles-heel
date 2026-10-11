@@ -174,13 +174,13 @@ export function createBook(onExit) {
       event.preventDefault();
     }
   });
-  stage.addEventListener('pointerup', (event) => {
+  document.addEventListener('pointerup', (event) => {
     if (reader.gesture?.kind !== 'pointer' || reader.gesture.id !== event.pointerId) return;
     const gesture = finishGesture();
     if (stage.hasPointerCapture(event.pointerId)) stage.releasePointerCapture(event.pointerId);
     commitGesture(gesture, event.clientX - gesture.x);
   });
-  stage.addEventListener('pointercancel', () => {
+  document.addEventListener('pointercancel', () => {
     if (reader.gesture?.kind === 'pointer') finishGesture();
   });
   stage.addEventListener('lostpointercapture', (event) => {
@@ -242,22 +242,39 @@ export function createBook(onExit) {
   let wheelLastAt = 0;
   let wheelUsed = false;
   let wheelDirection = 0;
-  stage.addEventListener('wheel', (event) => {
-    if (!compactLayout.matches || !isOpen() || event.ctrlKey) return;
-    if (Math.abs(event.deltaX) <= Math.abs(event.deltaY)) return;
+  let wheelAmplitude = 0;
+  let wheelPeak = 0;
+  root.addEventListener('wheel', (event) => {
+    if (!stage.contains(event.target) || !compactLayout.matches || !isOpen() || event.ctrlKey) return;
+    // A new trackpad input releases an unfinished mouse gesture, not text selection.
+    if (reader.gesture?.kind === 'pointer') finishGesture();
+    if (Math.abs(event.deltaX) < Math.abs(event.deltaY) * .75 || event.deltaX === 0) {
+      wheelUsed = false;
+      wheelDistance = 0;
+      wheelAmplitude = wheelPeak = 0;
+      return;
+    }
     event.preventDefault();
     const now = performance.now();
     const distance = event.deltaX * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? stage.clientWidth : 1);
     const direction = Math.sign(distance);
-    if (now - wheelLastAt > 180 || direction !== wheelDirection) { wheelDistance = 0; wheelUsed = false; }
+    const amplitude = Math.abs(distance);
+    const newStroke = wheelUsed && wheelAmplitude < wheelPeak * .4 && amplitude > wheelAmplitude * 2 + 8;
+    if (now - wheelLastAt > 120 || direction !== wheelDirection || newStroke) {
+      wheelDistance = 0;
+      wheelUsed = false;
+      wheelPeak = 0;
+    }
     wheelLastAt = now;
     wheelDirection = direction;
+    wheelAmplitude = amplitude;
+    wheelPeak = Math.max(wheelPeak, amplitude);
     if (wheelUsed) return;
     wheelDistance += distance;
     if (Math.abs(wheelDistance) < 28) return;
     wheelUsed = true;
     requestNavigation(wheelDistance > 0 ? 1 : -1);
-  }, { passive: false });
+  }, { passive: false, capture: true });
 
   function render() {
     showMemory(null);
