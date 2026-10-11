@@ -244,8 +244,12 @@ export function createBook(onExit) {
     removeCloneIds(still);
     turn = { leaf, still, direction, oldIndex, target, progress: 0, cameraStart: stage.scrollLeft, readingScroll: right.scrollTop };
     // The old opposite page remains in place until the turned sheet lands.
-    if (direction > 0) right.innerHTML = reading(chapters[target], target);
-    else left.innerHTML = illustration(chapters[target], target);
+    if (direction > 0) {
+      right.innerHTML = reading(chapters[target], target);
+      right.scrollTop = 0;
+    } else {
+      left.innerHTML = illustration(chapters[target], target);
+    }
     const width = book.clientWidth / 2;
     const height = book.clientHeight;
     face.style.width = back.style.width = `${width}px`;
