@@ -31,16 +31,18 @@ async function passClouds(changeScene) {
   veil.style.opacity = '1';
   experience.classList.add('in-flight');
   const duration = reducedMotion.matches ? 500 : 2800;
+  const portrait = matchMedia('(max-width: 1100px) and (orientation: portrait)').matches;
   const animations = [...veil.querySelectorAll('.veil-cloud')].map((cloud, i) => {
     const direction = i % 2 ? -1 : 1;
     const rotation = i === 1 ? 180 : 0;
-    const scale = [1.08, 1.2, 1.32][i];
-    const y = [12, -14, 0][i];
+    const scale = (portrait ? [1, 1.04, 1.08] : [1.08, 1.2, 1.32])[i];
+    const y = (portrait ? [4, -4, 0] : [12, -14, 0])[i];
+    const blur = portrait ? i * .5 : i * 2;
     return cloud.animate([
-      { offset: 0, transform: `translate3d(${-direction * 130}%,${y}%,0) scale(${scale}) rotate(${rotation}deg)`, filter: `blur(${i * 2}px)` },
-      { offset: .42, transform: `translate3d(${-direction * 12}%,${y}%,0) scale(${scale}) rotate(${rotation}deg)`, filter: `blur(${i * 2}px)` },
-      { offset: .58, transform: `translate3d(${direction * 12}%,${y - 2}%,0) scale(${scale}) rotate(${rotation}deg)`, filter: `blur(${i * 2}px)` },
-      { offset: 1, transform: `translate3d(${direction * 130}%,${y - 8}%,0) scale(${scale}) rotate(${rotation}deg)`, filter: `blur(${i * 2}px)` },
+      { offset: 0, transform: `translate3d(${-direction * 130}%,${y}%,0) scale(${scale}) rotate(${rotation}deg)`, filter: `blur(${blur}px)` },
+      { offset: .42, transform: `translate3d(${-direction * 12}%,${y}%,0) scale(${scale}) rotate(${rotation}deg)`, filter: `blur(${blur}px)` },
+      { offset: .58, transform: `translate3d(${direction * 12}%,${y - 2}%,0) scale(${scale}) rotate(${rotation}deg)`, filter: `blur(${blur}px)` },
+      { offset: 1, transform: `translate3d(${direction * 130}%,${y - 8}%,0) scale(${scale}) rotate(${rotation}deg)`, filter: `blur(${blur}px)` },
     ], { duration, easing: 'linear', fill: 'forwards' });
   });
   await new Promise(resolve => {

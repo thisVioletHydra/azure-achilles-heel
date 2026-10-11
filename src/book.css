@@ -188,3 +188,8 @@
  .book-closed .book,.book-closing .book{background:transparent;box-shadow:none}
  .book-closed .book:before,.book-closing .book:before{display:block;left:5px;top:calc(100% - 4px);width:calc(100% - 10px);height:16px;border:0;border-bottom:4px solid #203e49;border-radius:0 0 10px 8px;box-shadow:0 5px 10px #142b3340;background:repeating-linear-gradient(0deg,#c9b99b 0 1px,#eee4cf 1px 3px)}
 }
+/* Portrait passages use the cloud bank sideways, instead of enlarging its centre. */
+@media(max-width:1100px) and (orientation:portrait){
+ .veil-cloud,.veil-two,.veil-three{inset:-8%;background:none}
+ .veil-cloud:before{content:'';position:absolute;left:50%;top:50%;width:116dvh;height:116vw;background:url('/assets/cloud-flight.webp') center/cover no-repeat;transform:translate(-50%,-50%) rotate(90deg)}
+}
