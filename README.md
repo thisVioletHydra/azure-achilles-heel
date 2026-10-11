@@ -1,42 +1,36 @@
-# Azure Achilles’ Heel
+# Лазурная — история Чилли Хиил
 
-An atmospheric portfolio experience: a floating city, a blonde heroine in luminous armor and a flowing blue cape, and a journey into an ivory pavilion above the clouds.
+Иллюстрированная история о дочери пекаря, рыцаре Дрейке и доме, который она выбирает после утраты. Парящий остров открывает путь к книге из восьми разворотов.
 
-## Run locally
+## Запуск
 
-Node.js 22.12+ or 24+, pnpm 12.11.2 (pinned in `package.json`).
+Node.js 22.12+ или 24+, pnpm 12.11.2 (закреплён в `package.json`).
 
 ```sh
 pnpm install
 pnpm dev
 ```
 
-Create a production build with `pnpm build`; preview it with `pnpm preview`.
+`pnpm build` собирает production-версию, `pnpm preview` открывает её локально.
 
-## Experience
+## Управление
 
-- Three sky panels reveal the scene at different speeds once its artwork is ready; reduced motion uses a brief fade.
-- Independent floating islands, drifting clouds, animated waterfalls and light particles.
-- Subtle pointer-driven parallax for the distant world; the heroine stays fixed.
-- A traveller’s cape animated with a vertex shader; the person and ledge stay anchored.
-- Start your journey: a camera flight into a 3D courtyard, with a cloud transition between the illustrated city exterior and the geometry.
-- An ivory pavilion, particle fountain, expanding water ripples and moving armillary sphere.
-- Routes to the observatory and garden, and a return to the initial view.
-- A guided 84-second tour, atlas and story dialogs.
-- Responsive interface, keyboard controls and reduced-motion preferences. Animation pauses when the browser tab is hidden.
+- «Погрузиться в историю» — полёт к острову и раскрытие книги.
+- Стрелки клавиатуры ← →, кнопки или перетягивание края листа — переход между главами.
+- Кружки на иллюстрациях — воспоминания, доступные наведением, фокусом и нажатием.
+- Римские цифры — переход к выбранной главе.
+- Escape закрывает открытое воспоминание, затем книгу. Закрытие возвращает к острову.
 
-Click **Start your journey** to enter. Inside the city, use the route buttons or Left/Right arrow keys; Escape returns to the clouds.
+На широком экране лист поворачивается в CSS 3D с обратной стороной и тенью. На телефоне иллюстрация расположена над текстом, переходы упрощены. Учитывается настройка уменьшения движения. Звук отсутствует.
 
-## Implementation
+## Устройство
 
-Vite + native JavaScript + Three.js. Accessible HTML controls sit above a WebGL canvas. The exterior uses generated transparent artwork on independently animated planes; the courtyard is procedural 3D. This is a hybrid experience, not a fully modeled version of the painted city.
+Vite, native JavaScript, Three.js. Остров — прозрачная иллюстрация на отдельной плоскости, а не полностью смоделированный город. Шейдер ветра деформирует только свободную часть плаща; героиня и передний утёс закреплены. Книга состоит из HTML-страниц и CSS-обложки.
 
-`src/main.js` handles navigation, dialogs and the guided tour. `src/world.js` handles scene geometry, shaders, lighting and camera animation. Styles live in `src/style.css` and `src/motion.css`.
+`src/main.js` связывает полёт и книгу; `src/world.js` отвечает за сцену и камеру; `src/book.js` — за листание и управление; `src/story.js` — за сюжет и воспоминания. Стили книги находятся в `src/book.css`.
 
-WebGL is required for the journey. Without it, the background, story and atlas remain available. Google Fonts serves Manrope and Cormorant Garamond, with local system-font fallbacks. No analytics, accounts, backend or visitor-data storage.
+Без WebGL история доступна через ту же кнопку. Google Fonts загружает Cormorant Infant, Spectral и Manrope; системные шрифты служат запасным вариантом. Аналитики, аккаунтов, сервера и хранения данных посетителей нет.
 
-Artwork provenance and generation briefs are recorded in `ASSETS.md`. All runtime artwork is stored locally in `public/assets/` as optimized WebP files.
+Происхождение изображений записано в `ASSETS.md`. Все используемые изображения находятся в `public/assets/`.
 
-## Status
-
-Local implementation. No public deployment or award claim. The Awwwards reference is the creative target, not a certification.
+Проект запускается локально; публичный GitHub-репозиторий не означает опубликованный сайт. Awwwards — творческий ориентир.

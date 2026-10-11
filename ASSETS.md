@@ -19,3 +19,20 @@ The original traveller was edited with the built-in ImageGen tool into a blonde 
 The generated PNGs were converted to WebP using Sharp, retaining transparency. The original generation files remain in the tool’s generated-images directory. The cape is deformed locally in the vertex shader, using a tapered mask in texture coordinates that excludes the hair, armor, legs and cliff. The foreground uses a separate fixed camera, so pointer parallax does not move the woman.
 
 Cloud wisps, particle glows and marble textures are created procedurally in the browser. Favicon and brand mark are original geometric SVGs. Interface typefaces are Manrope and Cormorant Garamond from Google Fonts.
+
+## Storybook redesign
+
+All replacement artwork was generated with the built-in ImageGen tool. User-supplied anime armor, Drake portraits and landscape images served as visual references only; the supplied images and their signatures are not distributed.
+
+- `island-story.webp`: wide grassy floating plateau, rounded weathered bedrock, cloud-covered foundation, ivory village, a blue-roofed castle, trees and waterfalls. Replaces repetitive pointed rock teeth.
+- `heroine-story.webp`: adult blonde knight, loose natural hair, ivory cloth and pale steel/gold armor, azure embroidered cape, no wings. Separate fixed foreground plane; cape has localized shader motion.
+- `story/01-home.webp`: child and ordinary baker parents preparing bread in a warm bakery; mother's blue apron.
+- `story/02-fire.webp`: solitary crying child hugging the apron beside the burned house; departing hooded arsonist.
+- `story/03-hand.webp`: child-focused scene and a large offered gloved hand; Drake's face remains outside the scene.
+- `story/04-sword.webp`: wooden-sword training with white-haired scarred father figure Drake.
+- `story/05-prince.webp`: heroine and short-haired young prince handing out bread; Drake nearby.
+- `story/06-vayne.webp`: confrontation with a dark-clad lord, blue blade and burned settlement.
+- `story/07-rain.webp`: solitary armored heroine kneeling in rain holding her mother's apron; sword on the ground and small duel memory in the mist.
+- `story/08-wedding.webp`: heroine and prince wedding, Drake beside them, flowers, bread and the remembered apron.
+
+Illustrations share soft painterly fantasy rendering and ivory, gold and azure colors. Generated PNGs retain their original locations under Codex's generated_images directory; optimized WebP copies ship with the project. Earlier island and foreground assets are retained as historical source assets but no longer referenced by the scene.
