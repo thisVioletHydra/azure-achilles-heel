@@ -90,3 +90,24 @@
 #storybook[data-mood]{background:radial-gradient(ellipse at 50% 40%,#737561,#354b46 80%)}
 .book-stage:before{position:fixed;inset:0;transform:none;background:repeating-linear-gradient(2deg,transparent 0 110px,#17282b0b 112px 114px);box-shadow:inset 0 0 180px #14292b50}
 #storybook[data-chapter="0"].reading-ready .book>.page-illustration{cursor:pointer}
+/* Fit the whole reading scene to the browser viewport, including its controls. */
+#storybook{position:fixed;inset:0}
+@media(min-width:700px){
+ .book{width:min(90vw,calc((100svh - 240px)*1.72));height:min(1120px,calc(100svh - 240px));min-height:0;max-height:none}
+ .book-footer{width:min(90vw,calc((100svh - 240px)*1.72))}
+ .book-closed .book,.book-closing .book{transform:translateX(-25%) rotateX(5deg) scale(.9)}
+ .closed-book-actions{margin:16px 0 0}
+ .book-exit{margin:12px auto 0}
+}
+@media(min-width:700px) and (max-height:800px){
+ .book-header{padding:14px 5vw}
+ .paper-page,.turn-face{padding:18px 26px 25px}
+ .chapter-copy{padding:12px 6px 0}
+ .chapter-copy h2{font-size:32px}
+ .chapter-kicker{margin-bottom:10px}
+ .chapter-ornament{margin:10px 0 12px}
+ .chapter-text{font-size:12px;line-height:1.65}
+ .chapter-text p{margin-bottom:10px}
+ .chapter-copy blockquote{font-size:12px;margin-top:12px}
+ .book-footer{margin-top:24px}
+}
