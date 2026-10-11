@@ -283,6 +283,31 @@
 .binding-scene .chapter-text{font-size:16px;line-height:1.7}
 .binding-scene .page-reading>.page-running{display:none}
 .binding-scene .cover-frame{inset:18px;gap:12px}
+.binding-cover-content{position:absolute;left:-3px;top:-3px;transform-origin:top left}
+.binding-cover-content .cover-frame{inset:21px;padding:10px}
+.binding-paper-edge{position:absolute;border-bottom:4px solid #203e49;border-radius:0 0 10px 8px;box-shadow:0 5px 10px #142b3340;background:repeating-linear-gradient(0deg,#c9b99b 0 1px,#eee4cf 1px 3px)}
+.book-home{font-family:Manrope,sans-serif;font-size:10px;color:inherit;padding:12px;min-height:44px}
+.book-open .book-home,.book-closing .book-home{display:none}
+.ui-arrow{width:22px;height:22px;flex-shrink:0;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.book-exit{display:inline-flex;align-items:center;gap:12px;background:#eee4cf;color:#203e49;font-weight:600}
+@media(max-width:1100px){
+ #storybook{overscroll-behavior-x:none;padding-bottom:calc(env(safe-area-inset-bottom) + 16px)}
+ .book-open{--page-height:calc(100dvh - 185px - env(safe-area-inset-top) - env(safe-area-inset-bottom))}
+ .book-header{padding-top:calc(12px + env(safe-area-inset-top))}
+ .book-open .book-stage{overscroll-behavior-x:none}
+ .book-open .chapter-text,.binding-scene .chapter-text{font-size:14px;line-height:1.55}
+ .book-open .chapter-copy h2,.binding-scene .chapter-copy h2{font-size:30px}
+ .book-open .chapter-copy,.binding-scene .chapter-copy{padding-top:10px}
+ .book-open .chapter-copy blockquote,.binding-scene .chapter-copy blockquote{font-size:12px;margin-top:12px}
+ .book-open .chapter-text p,.binding-scene .chapter-text p{margin-bottom:10px}
+ .book-open .book-hint{margin-bottom:calc(12px + env(safe-area-inset-bottom))}
+ .book-open .book-footer{min-height:48px}
+}
+@media(max-width:600px) and (max-height:740px){
+ .book-open .chapter-text,.binding-scene .chapter-text{font-size:13px;line-height:1.5}
+ .book-open .chapter-copy h2,.binding-scene .chapter-copy h2{font-size:28px}
+ .book-open .chapter-ornament,.binding-scene .chapter-ornament{margin:10px 0 14px}
+}
 @media(min-width:1101px){
  .book-open .book{transition:transform 1.3s cubic-bezier(.2,.7,.2,1) .35s}
  .book-closing .book{transition:transform 1.3s cubic-bezier(.2,.7,.2,1)}

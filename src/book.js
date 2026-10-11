@@ -14,7 +14,7 @@ function reading(chapter, index) {
   return `<div class="page-running">КНИГА ПЕРВАЯ <span>ГЛАВА ${numbers[index]}</span></div>
     <div class="chapter-copy"><p class="chapter-kicker">ГЛАВА ${numbers[index]} <span>—</span> ${index === 7 ? 'ЭПИЛОГ' : 'ВОСПОМИНАНИЕ'}</p><h2 id="chapter-title">${chapter.title}</h2><div class="chapter-ornament" aria-hidden="true">──── ❦ ────</div>
     <div class="chapter-text">${chapter.paragraphs.map((p) => `<p>${p}</p>`).join('')}</div>
-    <blockquote>${chapter.quote}</blockquote>${index === 7 ? '<div class="happy-heart" aria-label="Счастливый конец">♡</div><button class="final-close" data-book-close>Закрыть эту историю <span>↗</span></button>' : ''}</div>
+    <blockquote>${chapter.quote}</blockquote>${index === 7 ? '<div class="happy-heart" aria-label="Счастливый конец">♡</div><button class="final-close" data-book-close>Закрыть эту историю <svg class="ui-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19 19 5M5 5h14v14"/></svg></button>' : ''}</div>
     <span class="page-number">${index * 2 + 2}</span>`;
 }
 
@@ -38,6 +38,7 @@ export function createBook(onExit) {
   let cameraSide = 0;
   let savedCameraSide = 0;
   let closedCoverRect = null;
+  let closedCoverFrame = null;
   function pan(side, smooth = true) {
     cameraSide = side;
     stage.scrollTo({ left: side * book.clientWidth / 2, behavior: smooth && !reducedMotion.matches ? 'smooth' : 'instant' });
@@ -127,9 +128,10 @@ export function createBook(onExit) {
   }
   stage.addEventListener('touchstart', (event) => {
     if (!compactLayout.matches || !isOpen || isClosing || turn || !root.classList.contains('reading-ready')) return;
+    if (event.touches[0].clientX < 24 || event.touches[0].clientX > innerWidth - 24) event.preventDefault();
     const point = touchCenter(event.touches);
     touchGesture = { ...point, lastX: point.x, count: event.touches.length, horizontal: false, pinch: false };
-  }, { passive: true });
+  }, { passive: false });
   stage.addEventListener('touchmove', (event) => {
     if (!touchGesture || event.touches.length !== touchGesture.count) return;
     const point = touchCenter(event.touches);
@@ -368,7 +370,16 @@ export function createBook(onExit) {
     rightBoard.className = 'binding-right paper-page page-reading';
     cover.className = 'binding-cover book-cover';
     cover.removeAttribute('data-book-open');
+    const frameBox = document.createElement('div');
+    frameBox.className = 'binding-cover-content';
+    Object.assign(frameBox.style, { width: `${rect.width}px`, height: `${rect.height}px`, transform: `scale(${pageWidth / rect.width},${pageHeight / rect.height})` });
+    frameBox.append(closedCoverFrame.cloneNode(true));
+    cover.querySelector('.cover-frame').replaceWith(frameBox);
     scene.append(leftBoard, rightBoard, cover);
+    const paperEdge = document.createElement('div');
+    paperEdge.className = 'binding-paper-edge';
+    Object.assign(paperEdge.style, { left: `${pageWidth + 5 * pageWidth / rect.width}px`, top: `${pageHeight - 4 * pageHeight / rect.height}px`, width: `${pageWidth - 10 * pageWidth / rect.width}px`, height: `${16 * pageHeight / rect.height}px` });
+    scene.prepend(paperEdge);
     removeCloneIds(scene);
     const small = `scale(${rect.width / pageWidth},${rect.height / pageHeight})`;
     const full = `translate(${target.left - (rect.left - pageWidth)}px,${target.top - rect.top}px) scale(1)`;
@@ -382,6 +393,8 @@ export function createBook(onExit) {
     if (opening) await Promise.all([...scene.querySelectorAll('img')].map(image => image.decode()));
     const options = { duration: 1600, easing: 'linear', fill: 'both', direction: opening ? 'normal' : 'reverse' };
     await Promise.all([
+      paperEdge.animate([{opacity:1,offset:0},{opacity:0,offset:.15},{opacity:0,offset:1}], options).finished,
+      rightBoard.animate([{boxShadow:'none',clipPath:'inset(3px 5px round 12px)',offset:0},{boxShadow:'0 3px #cdbd9e,0 6px #eee4cf,0 9px #183640',clipPath:'inset(0 round 12px)',offset:.15},{boxShadow:'0 3px #cdbd9e,0 6px #eee4cf,0 9px #183640',clipPath:'inset(0 round 12px)',offset:1}], options).finished,
       cover.animate([{transform:'rotateY(0deg)',offset:0},{transform:'rotateY(-150deg)',offset:.55},{transform:'rotateY(-180deg)',offset:.8},{transform:'rotateY(-180deg)',offset:1}], options).finished,
       leftBoard.animate([{transform:'rotateY(180deg)',offset:0},{transform:'rotateY(15deg)',offset:.65},{transform:'rotateY(0deg)',offset:.9},{transform:'rotateY(0deg)',offset:1}], options).finished,
       scene.animate([{transform:small,offset:0},{transform:small,offset:.35,easing:'ease-in-out'},{transform:full,offset:1}], options).finished,
@@ -400,6 +413,13 @@ export function createBook(onExit) {
     if (isOpen || isClosing || root.inert) return;
     const cover = root.querySelector('.book-cover');
     closedCoverRect = cover.getBoundingClientRect();
+    closedCoverFrame = cover.querySelector('.cover-frame').cloneNode(true);
+    [...closedCoverFrame.children].forEach((child, i) => {
+      const style = getComputedStyle(cover.querySelector('.cover-frame').children[i]);
+      child.style.fontSize = style.fontSize;
+      child.style.letterSpacing = style.letterSpacing;
+      child.style.lineHeight = style.lineHeight;
+    });
     root.classList.remove('book-closed', 'book-closing');
     root.hidden = false;
     root.inert = false;
