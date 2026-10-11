@@ -5,7 +5,7 @@ const numbers = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII'];
 function illustration(chapter, index) {
   return `<div class="page-running">ИСТОРИЯ ЛАЗУРНОЙ <span>ЧИЛЛИ ХИИЛ</span></div>
     <div class="illustration-window"><img class="story-art" src="${import.meta.env.BASE_URL}assets/story/${chapter.image}.webp" alt="${chapter.subtitle}" draggable="false" />
-    ${chapter.memories.map((memory, i) => `<button class="memory-point${memory.y < 40 ? ' memory-below' : ''}" style="--x:${memory.x}%;--y:${memory.y}%" aria-label="Воспоминание: ${memory.title}" aria-describedby="memory-${index}-${i}"><span class="memory-mark">${i + 1}</span><span class="memory-tooltip" role="tooltip" id="memory-${index}-${i}"><strong>${memory.title}</strong>${memory.text}</span></button>`).join('')}</div>
+    ${chapter.memories.map((memory, i) => `<button class="memory-point${memory.y < 40 ? ' memory-below' : ''}" style="--x:${memory.x}%;--y:${memory.y}%" aria-expanded="false" aria-label="Воспоминание: ${memory.title}" aria-describedby="memory-${index}-${i}"><span class="memory-mark">${i + 1}</span><span class="memory-tooltip" role="tooltip" id="memory-${index}-${i}"><strong>${memory.title}</strong>${memory.text}</span></button>`).join('')}</div>
     <div class="illustration-caption"><span>✧</span>${chapter.subtitle}<span>✧</span></div>
     <span class="page-number">${index * 2 + 1}</span>`;
 }
@@ -35,7 +35,18 @@ export function createBook(onExit) {
   const dots = root.querySelector('.book-chapters');
   const stage = root.querySelector('.book-stage');
   const decodedImages = new Map();
-  const reader = { phase: 'closed', chapter: 0, side: 0, turn: null, drag: null, gesture: null };
+  const reader = { phase: 'closed', chapter: 0, side: 0, turn: null, drag: null, gesture: null, memory: null };
+  function showMemory(point, pinned = false) {
+    if (reader.memory) {
+      reader.memory.point.classList.remove('open');
+      reader.memory.point.setAttribute('aria-expanded', 'false');
+    }
+    reader.memory = point ? { point, pinned } : null;
+    if (point) {
+      point.classList.add('open');
+      point.setAttribute('aria-expanded', 'true');
+    }
+  }
   const transitions = {
     closed: ['opening'],
     opening: ['idle'],
@@ -58,6 +69,7 @@ export function createBook(onExit) {
   let closedCoverRect = null;
   let closedCoverFrame = null;
   async function pan(side, smooth = true) {
+    showMemory(null);
     const destination = side * book.clientWidth / 2;
     if (!smooth || reducedMotion.matches) {
       reader.side = side;
@@ -225,6 +237,7 @@ export function createBook(onExit) {
   }, { passive: false });
 
   function render() {
+    showMemory(null);
     const chapter = chapters[reader.chapter];
     // Each chapter transfers one sheet from the right block to the left board.
     function stackShadow(sheets) {
@@ -261,6 +274,7 @@ export function createBook(onExit) {
     const target = reader.chapter + direction;
     if (reader.phase !== 'idle' || target < 0 || target >= chapters.length) return false;
     transition('turning');
+    showMemory(null);
     const oldIndex = reader.chapter;
     root.classList.add('page-turning');
     stage.scrollTo({ left: stage.scrollLeft, behavior: 'instant' });
@@ -512,7 +526,7 @@ export function createBook(onExit) {
     if (reader.phase !== 'idle') return;
     transition('closing');
     root.inert = true;
-    root.querySelectorAll('.memory-point.open').forEach(point => point.classList.remove('open'));
+    showMemory(null);
     const finishCover = compactLayout.matches && !reducedMotion.matches ? await animateCompactCover(false) : null;
     root.classList.add('book-closing');
     root.classList.remove('book-open', 'reading-ready', 'artwork-ready');
@@ -541,11 +555,24 @@ export function createBook(onExit) {
   }
 
   left.addEventListener('click', (event) => {
+    if (reader.memory && !event.target.closest('.memory-point')) {
+      showMemory(null);
+      return;
+    }
     if (!compactLayout.matches && reader.chapter === 0 && isOpen() && !reader.turn && !event.target.closest('button')) close();
   });
 
   left.addEventListener('pointerenter', () => book.classList.add('hover-left'));
   left.addEventListener('pointerleave', () => book.classList.remove('hover-left'));
+  left.addEventListener('pointerover', (event) => {
+    const point = event.target.closest('.memory-point');
+    if (event.pointerType === 'mouse' && point && reader.phase === 'idle' && reader.memory?.point !== point) showMemory(point);
+  });
+  left.addEventListener('pointerout', (event) => {
+    const memory = reader.memory;
+    if (event.pointerType !== 'mouse' || !memory || memory.pinned) return;
+    if (memory.point.contains(event.target) && !memory.point.contains(event.relatedTarget)) showMemory(null);
+  });
   right.addEventListener('pointerenter', () => book.classList.add('hover-right'));
   right.addEventListener('pointerleave', () => book.classList.remove('hover-right'));
 
@@ -556,10 +583,9 @@ export function createBook(onExit) {
     if (event.target.closest('[data-book-close]')) close();
     if (event.target.closest('[data-book-exit]')) exit();
     const memory = event.target.closest('.memory-point');
-    if (memory) {
-      root.querySelectorAll('.memory-point.open').forEach((point) => { if (point !== memory) point.classList.remove('open'); });
-      memory.classList.toggle('open');
-    }
+    if (event.target.closest('.memory-tooltip')) return;
+    if (memory && reader.phase === 'idle') showMemory(reader.memory?.point === memory && reader.memory.pinned ? null : memory, true);
+    else showMemory(null);
     const chapter = event.target.closest('.book-chapters [data-chapter]');
     if (chapter && reader.phase === 'idle') {
       const target = Number(chapter.dataset.chapter);
@@ -613,8 +639,7 @@ export function createBook(onExit) {
     if (event.key === 'ArrowRight') { event.preventDefault(); navigate(1); }
     if (event.key === 'ArrowLeft') { event.preventDefault(); navigate(-1); }
     if (event.key === 'Escape') {
-      const openedMemory = root.querySelector('.memory-point.open');
-      if (openedMemory) openedMemory.classList.remove('open');
+      if (reader.memory) showMemory(null);
       else close();
     }
   });
