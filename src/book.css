@@ -287,6 +287,10 @@
 .binding-cover-content .cover-frame{inset:21px;padding:10px}
 .binding-paper-edge{position:absolute;border-bottom:4px solid #203e49;border-radius:0 0 10px 8px;box-shadow:0 5px 10px #142b3340;background:repeating-linear-gradient(0deg,#c9b99b 0 1px,#eee4cf 1px 3px)}
 .book-home{font-family:Manrope,sans-serif;font-size:10px;color:inherit;padding:12px;min-height:44px}
+.book>.page-reading{overflow-y:auto;overscroll-behavior-y:contain;scrollbar-width:thin;scrollbar-color:#b9a78a transparent}
+.page-reading>.page-number{position:static;display:block;text-align:center;padding-top:12px}
+.memory-point.memory-below .memory-tooltip{top:38px;bottom:auto}
+.memory-point.open .memory-tooltip,.memory-point:hover .memory-tooltip,.memory-point:focus-visible .memory-tooltip{pointer-events:auto;max-height:min(320px,45dvh);overflow-y:auto;overscroll-behavior:contain;white-space:pre-line}
 .book-open .book-home,.book-closing .book-home{display:none}
 .ui-arrow{width:22px;height:22px;flex-shrink:0;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
 .book-exit{display:inline-flex;align-items:center;gap:12px;background:#eee4cf;color:#203e49;font-weight:600}

@@ -5,7 +5,7 @@ const numbers = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII'];
 function illustration(chapter, index) {
   return `<div class="page-running">ИСТОРИЯ ЛАЗУРНОЙ <span>ЧИЛЛИ ХИИЛ</span></div>
     <div class="illustration-window"><img class="story-art" src="${import.meta.env.BASE_URL}assets/story/${chapter.image}.webp" alt="${chapter.subtitle}" draggable="false" />
-    ${chapter.memories.map((memory, i) => `<button class="memory-point" style="--x:${memory.x}%;--y:${memory.y}%" aria-label="Воспоминание: ${memory.title}" aria-describedby="memory-${index}-${i}"><span class="memory-mark">${i + 1}</span><span class="memory-tooltip" role="tooltip" id="memory-${index}-${i}"><strong>${memory.title}</strong>${memory.text}</span></button>`).join('')}</div>
+    ${chapter.memories.map((memory, i) => `<button class="memory-point${memory.y < 40 ? ' memory-below' : ''}" style="--x:${memory.x}%;--y:${memory.y}%" aria-label="Воспоминание: ${memory.title}" aria-describedby="memory-${index}-${i}"><span class="memory-mark">${i + 1}</span><span class="memory-tooltip" role="tooltip" id="memory-${index}-${i}"><strong>${memory.title}</strong>${memory.text}</span></button>`).join('')}</div>
     <div class="illustration-caption"><span>✧</span>${chapter.subtitle}<span>✧</span></div>
     <span class="page-number">${index * 2 + 1}</span>`;
 }
@@ -64,8 +64,8 @@ export function createBook(onExit) {
   const compactLayout = matchMedia('(max-width: 1100px)');
   function updateReadingHint() {
     root.querySelector('.book-hint').textContent = compactLayout.matches
-      ? 'Свайп влево — дальше, вправо — назад. Кружки хранят воспоминания.'
-      : 'Листайте стрелками ← → или тяните за край листа. Кружки на рисунках хранят воспоминания.';
+      ? 'Текст прокручивается вверх и вниз. Свайп влево — дальше, вправо — назад.'
+      : 'Прокручивайте текст внутри страницы. Листайте стрелками ← → или тяните за край листа. Кружки хранят воспоминания.';
   }
   compactLayout.addEventListener('change', updateReadingHint);
   updateReadingHint();
@@ -228,7 +228,8 @@ export function createBook(onExit) {
     back.innerHTML = direction > 0 ? illustration(chapters[target], target) : reading(chapters[target], target);
     leaf.append(face, back);
     removeCloneIds(leaf);
-    const still = (direction > 0 ? left : right).cloneNode(true);
+    const stillPage = direction > 0 ? left : right;
+    const still = stillPage.cloneNode(true);
     still.classList.add('turn-still');
     removeCloneIds(still);
     turn = { leaf, still, direction, oldIndex, target, progress: 0, cameraStart: stage.scrollLeft };
@@ -244,6 +245,7 @@ export function createBook(onExit) {
     turn.sourceScroll = sourceScroll;
     previous.disabled = next.disabled = true;
     book.append(still, leaf);
+    still.scrollTop = stillPage.scrollTop;
     face.scrollTop = sourceScroll;
     root.classList.add('page-turning');
     pose(0);
@@ -312,7 +314,8 @@ export function createBook(onExit) {
     if (compactLayout.matches) cameraSide = current.direction > 0 ? 0 : 1;
     dots.inert = false;
     render();
-    if (compactLayout.matches) { pan(current.direction > 0 ? 0 : 1, false); right.scrollTop = 0; }
+    right.scrollTop = 0;
+    if (compactLayout.matches) pan(current.direction > 0 ? 0 : 1, false);
   }
 
   async function flip(direction) {
