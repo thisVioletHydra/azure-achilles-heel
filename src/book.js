@@ -48,11 +48,12 @@ export function createBook(onExit) {
     next.querySelector('.nav-caption').textContent = compactLayout.matches && cameraSide === 0 ? 'Читать' : 'Следующая глава';
   }
   function navigate(direction) {
+    if (turn || isClosing) return;
     if (compactLayout.matches && ((direction > 0 && cameraSide === 0) || (direction < 0 && cameraSide === 1))) { pan(direction > 0 ? 1 : 0); return; }
     flip(direction);
   }
   stage.addEventListener('scroll', () => {
-    if (!compactLayout.matches || !isOpen) return;
+    if (!compactLayout.matches || !isOpen || turn) return;
     cameraSide = stage.scrollLeft > book.clientWidth / 4 ? 1 : 0;
     updateNavigation();
   }, { passive: true });
@@ -169,7 +170,7 @@ export function createBook(onExit) {
     const still = (direction > 0 ? left : right).cloneNode(true);
     still.classList.add('turn-still');
     removeCloneIds(still);
-    turn = { leaf, still, direction, oldIndex, target, progress: 0 };
+    turn = { leaf, still, direction, oldIndex, target, progress: 0, cameraStart: stage.scrollLeft };
     // The old opposite page remains in place until the turned sheet lands.
     if (direction > 0) right.innerHTML = reading(chapters[target], target);
     else left.innerHTML = illustration(chapters[target], target);
@@ -206,6 +207,7 @@ export function createBook(onExit) {
     turn.width = width;
     previous.disabled = next.disabled = true;
     book.append(still, leaf);
+    root.classList.add('page-turning');
     pose(0);
     dots.inert = true;
     return true;
@@ -237,14 +239,19 @@ export function createBook(onExit) {
     const current = turn;
     const from = current.progress;
     const to = commit ? 1 : 0;
-    if (!reducedMotion.matches && innerWidth >= 1101) {
+    if (!reducedMotion.matches) {
       const start = performance.now();
       const duration = Math.max(220, Math.abs(to - from) * 940);
       await new Promise((resolve) => {
         function tick(now) {
           const p = Math.min((now - start) / duration, 1);
           const eased = p < .5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
-          pose(from + (to - from) * eased);
+          const position = from + (to - from) * eased;
+          pose(position);
+          if (compactLayout.matches) {
+            const destination = current.direction > 0 ? 0 : current.width;
+            stage.scrollLeft = current.cameraStart + (destination - current.cameraStart) * position;
+          }
           if (p < 1) requestAnimationFrame(tick);
           else resolve();
         }
@@ -255,6 +262,7 @@ export function createBook(onExit) {
       current.still.style.display = 'none';
       await right.animate([{ opacity: .3 }, { opacity: 1 }], { duration: reducedMotion.matches ? 120 : 350 }).finished;
     }
+    root.classList.remove('page-turning');
     current.leaf.remove();
     current.still.remove();
     index = commit ? current.target : current.oldIndex;
@@ -304,11 +312,14 @@ export function createBook(onExit) {
 
   async function open() {
     if (isOpen || isClosing || root.inert) return;
+    await left.querySelector('.story-art').decode();
+    if (isOpen || isClosing || root.inert) return;
     root.classList.remove('book-closed', 'book-closing');
     root.hidden = false;
     root.inert = false;
     isOpen = true;
     root.classList.add('book-open');
+    if (compactLayout.matches) { root.classList.add('artwork-ready'); pan(0, false); }
     root.querySelector('.book-close').focus({ preventScroll: true });
     const cover = root.querySelector('.book-cover');
     cover.getBoundingClientRect();
@@ -325,7 +336,7 @@ export function createBook(onExit) {
     isClosing = true;
     root.inert = true;
     root.classList.add('book-closing');
-    root.classList.remove('book-open', 'reading-ready');
+    root.classList.remove('book-open', 'reading-ready', 'artwork-ready');
     if (!reducedMotion.matches) {
       await Promise.allSettled(root.querySelector('.book-cover').getAnimations().map((a) => a.finished));
     }
