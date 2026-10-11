@@ -81,6 +81,7 @@ export function createBook(onExit) {
 
   stage.addEventListener('pointerdown', (event) => {
     if (event.pointerType === 'touch') return;
+    if (event.target.closest('.page-reading, .page-running, .illustration-caption, .page-number, button, a')) return;
     if (!compactLayout.matches || !isOpen || isClosing || turn || !event.isPrimary || event.button !== 0) return;
     if (!root.classList.contains('reading-ready') || performance.now() < swipeReadyAt) return;
     swipe = { id: event.pointerId, x: event.clientX, y: event.clientY, horizontal: false };
