@@ -241,3 +241,20 @@
  .page-turning .book-stage,.page-turning .book>.paper-page{pointer-events:none}
 }
 @media(max-width:1100px){#storybook.book-open.artwork-ready .book>.paper-page{visibility:visible;opacity:1}}
+.cover-flight .book>.book-cover{visibility:hidden!important}
+@media(max-width:1100px){
+ .cover-transition.book-cover{left:auto;top:auto;transform:none;opacity:1;border-radius:10px 17px 17px 10px}
+ .book-nav:focus:not(:focus-visible){outline:none}
+}
+/* One continuous rounded hinge, ending flush with the lower board. */
+.cover-binding{bottom:-15px;height:29px;width:22px;border-radius:0 0 10px 10px;box-shadow:1px 2px 3px #0c242c35}
+.cover-binding:after{inset:0 3px 1px 1px;border-radius:0 0 9px 9px}
+.cover-binding:before{left:17px;right:-6px;top:12px;height:4px;border-radius:0 0 3px 3px}
+@media(max-width:1100px){.cover-binding{bottom:-14px;height:28px;width:20px}.cover-binding:after{right:3px}.cover-binding:before{left:15px;right:-5px;top:11px;height:4px}}
+/* The hinge is a single full-height piece, with no separate sleeve seam. */
+.book-cover:before{display:none}
+.cover-binding{top:-1px;bottom:-15px;height:auto;left:-1px;width:19px;border-radius:9px 0 9px 10px;background:linear-gradient(90deg,#102d38,#476875 35%,#163945 78%,#76908b55)}
+.cover-binding:after{inset:0 2px 1px 0;border-radius:8px 0 8px 9px;background:linear-gradient(90deg,#122e39,#466977 45%,#234752 80%)}
+.cover-binding:before{top:auto;bottom:8px;left:16px;right:-5px}
+@media(max-width:1100px){.cover-binding{top:-1px;bottom:-14px;height:auto;width:18px}.cover-binding:after{right:2px}.cover-binding:before{top:auto;bottom:7px;left:15px;right:-4px}}
+@media(max-width:1100px){.book-open .page-reading{scrollbar-width:none}.book-open .page-reading::-webkit-scrollbar{display:none}}

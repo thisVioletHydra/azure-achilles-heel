@@ -36,6 +36,8 @@ export function createBook(onExit) {
   const stage = root.querySelector('.book-stage');
   const decodedImages = new Map();
   let cameraSide = 0;
+  let savedCameraSide = 0;
+  let closedCoverRect = null;
   function pan(side, smooth = true) {
     cameraSide = side;
     stage.scrollTo({ left: side * book.clientWidth / 2, behavior: smooth && !reducedMotion.matches ? 'smooth' : 'instant' });
@@ -44,11 +46,11 @@ export function createBook(onExit) {
   function updateNavigation() {
     previous.disabled = !!turn || (index === 0 && (!compactLayout.matches || cameraSide === 0));
     next.disabled = !!turn || (index === chapters.length - 1 && (!compactLayout.matches || cameraSide === 1));
-    previous.querySelector('.nav-caption').textContent = compactLayout.matches && cameraSide === 1 ? 'Иллюстрация' : 'Предыдущая глава';
-    next.querySelector('.nav-caption').textContent = compactLayout.matches && cameraSide === 0 ? 'Читать' : 'Следующая глава';
+    previous.querySelector('.nav-caption').textContent = compactLayout.matches ? 'Назад' : 'Предыдущая глава';
+    next.querySelector('.nav-caption').textContent = compactLayout.matches ? 'Дальше' : 'Следующая глава';
   }
   function navigate(direction) {
-    if (turn || isClosing) return;
+    if (turn || isClosing || !root.classList.contains('reading-ready')) return;
     if (compactLayout.matches && ((direction > 0 && cameraSide === 0) || (direction < 0 && cameraSide === 1))) { pan(direction > 0 ? 1 : 0); return; }
     flip(direction);
   }
@@ -117,6 +119,24 @@ export function createBook(onExit) {
     event.stopPropagation();
   }, true);
 
+  let wheelDistance = 0;
+  let wheelLastAt = 0;
+  let wheelUsed = false;
+  stage.addEventListener('wheel', (event) => {
+    if (!compactLayout.matches || !isOpen || isClosing || event.ctrlKey) return;
+    if (Math.abs(event.deltaX) <= Math.abs(event.deltaY)) return;
+    event.preventDefault();
+    const now = performance.now();
+    if (now - wheelLastAt > 180) { wheelDistance = 0; wheelUsed = false; }
+    wheelLastAt = now;
+    if (turn || wheelUsed) return;
+    const distance = event.deltaX * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? stage.clientWidth : 1);
+    wheelDistance += distance;
+    if (Math.abs(wheelDistance) < 45) return;
+    wheelUsed = true;
+    navigate(wheelDistance > 0 ? 1 : -1);
+  }, { passive: false });
+
   function render() {
     const chapter = chapters[index];
     // Each chapter transfers one sheet from the right block to the left board.
@@ -159,9 +179,11 @@ export function createBook(onExit) {
     const oldIndex = index;
     const leaf = document.createElement('div');
     leaf.className = `turn-leaf ${direction > 0 ? 'turn-forward' : 'turn-backward'}`;
-    const face = document.createElement('div');
+    const sourcePage = direction > 0 ? right : left;
+    const sourceScroll = sourcePage.scrollTop;
+    const face = sourcePage.cloneNode(true);
     face.className = `turn-face turn-front ${direction > 0 ? 'page-reading' : 'page-illustration'}`;
-    face.innerHTML = direction > 0 ? reading(chapters[index], index) : illustration(chapters[index], index);
+
     const back = document.createElement('div');
     back.className = `turn-face turn-back ${direction > 0 ? 'page-illustration' : 'page-reading'}`;
     back.innerHTML = direction > 0 ? illustration(chapters[target], target) : reading(chapters[target], target);
@@ -181,14 +203,16 @@ export function createBook(onExit) {
     for (let i = 0; i < count; i++) {
       const slice = document.createElement('div');
       slice.className = 'paper-slice';
-      slice.style.width = `${width / count + .7}px`;
+      slice.style.width = `${width / count}px`;
       slice.style.transformOrigin = direction > 0 ? 'left center' : 'right center';
       for (const [side, original] of [['front', face], ['back', back]]) {
         const surface = document.createElement('div');
         surface.className = `slice-surface slice-${side}`;
         const content = original.cloneNode(true);
         content.style.width = `${width}px`;
-        content.style.height = `${height}px`;
+        const scrollOffset = side === 'front' ? sourceScroll : 0;
+        content.style.height = `${height + scrollOffset}px`;
+        content.style.top = `${-scrollOffset}px`;
         const offset = side === 'front' ? i : count - 1 - i;
         const column = direction > 0 ? offset : count - 1 - offset;
         content.style.left = `${-column * width / count}px`;
@@ -267,6 +291,7 @@ export function createBook(onExit) {
     current.still.remove();
     index = commit ? current.target : current.oldIndex;
     turn = null;
+    if (compactLayout.matches) cameraSide = current.direction > 0 ? 0 : 1;
     dots.inert = false;
     render();
     if (compactLayout.matches) { pan(current.direction > 0 ? 0 : 1, false); right.scrollTop = 0; }
@@ -294,6 +319,7 @@ export function createBook(onExit) {
     root.classList.remove('book-open', 'book-closing', 'book-returning', 'reading-ready');
     root.classList.add('book-closed');
     index = 0;
+    savedCameraSide = 0;
     render();
     root.classList.add('book-arriving');
   }
@@ -310,24 +336,52 @@ export function createBook(onExit) {
     root.querySelectorAll('.page-grip').forEach(grip => { grip.inert = value; });
   }
 
+  async function animateCompactCover(opening) {
+    const cover = root.querySelector('.book-cover');
+    const ghost = cover.cloneNode(true);
+    ghost.className = 'cover-transition book-cover';
+    ghost.removeAttribute('data-book-open');
+    ghost.inert = true;
+    ghost.setAttribute('aria-hidden', 'true');
+    const rect = closedCoverRect;
+    Object.assign(ghost.style, { position: 'fixed', left: `${rect.left}px`, top: `${rect.top}px`, width: `${rect.width}px`, height: `${rect.height}px`, minHeight: '0', zIndex: '40', visibility: 'visible', transformOrigin: 'left center', transition: 'none' });
+    root.classList.add('cover-flight');
+    root.append(ghost);
+    const frames = [
+      { transform: 'perspective(1500px) rotateY(0deg)', opacity: 1, offset: 0 },
+      { transform: 'perspective(1500px) rotateY(-95deg)', opacity: .85, offset: .65 },
+      { transform: 'perspective(1500px) rotateY(-150deg)', opacity: 0, offset: 1 },
+    ];
+    const options = { duration: 1000, easing: 'cubic-bezier(.22,.68,.22,1)', fill: 'both' };
+    const zoom = [{ transform: 'translateY(20px) scale(.9)', opacity: .65 }, { transform: 'translateY(0) scale(1)', opacity: 1 }];
+    await Promise.all([
+      ghost.animate(frames, { ...options, direction: opening ? 'normal' : 'reverse' }).finished,
+      stage.animate(zoom, { ...options, direction: opening ? 'normal' : 'reverse', fill: 'none' }).finished,
+    ]);
+    ghost.remove();
+    root.classList.remove('cover-flight');
+  }
+
   async function open() {
     if (isOpen || isClosing || root.inert) return;
     await left.querySelector('.story-art').decode();
     if (isOpen || isClosing || root.inert) return;
+    const cover = root.querySelector('.book-cover');
+    closedCoverRect = cover.getBoundingClientRect();
     root.classList.remove('book-closed', 'book-closing');
     root.hidden = false;
     root.inert = false;
     isOpen = true;
     root.classList.add('book-open');
-    if (compactLayout.matches) { root.classList.add('artwork-ready'); pan(0, false); }
+    if (compactLayout.matches) { root.classList.add('artwork-ready'); pan(savedCameraSide, false); }
     root.querySelector('.book-close').focus({ preventScroll: true });
-    const cover = root.querySelector('.book-cover');
     cover.getBoundingClientRect();
+    if (compactLayout.matches && !reducedMotion.matches) await animateCompactCover(true);
     await Promise.allSettled(cover.getAnimations().map(animation => animation.finished));
     if (!isOpen || isClosing) return;
     await left.querySelector('.story-art').decode();
     root.classList.add('reading-ready');
-    if (compactLayout.matches) pan(0, false);
+    if (compactLayout.matches) pan(savedCameraSide, false);
     setPagesInert(false);
   }
 
@@ -335,6 +389,9 @@ export function createBook(onExit) {
     if (!isOpen || turn || isClosing) return;
     isClosing = true;
     root.inert = true;
+    savedCameraSide = cameraSide;
+    root.querySelectorAll('.memory-point.open').forEach(point => point.classList.remove('open'));
+    if (compactLayout.matches && !reducedMotion.matches) await animateCompactCover(false);
     root.classList.add('book-closing');
     root.classList.remove('book-open', 'reading-ready', 'artwork-ready');
     if (!reducedMotion.matches) {
