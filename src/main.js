@@ -1,5 +1,4 @@
 import { createBook } from './book.js';
-import { chapters } from './story.js';
 import { createWorld } from './world.js';
 
 const experience = document.querySelector('#experience');
@@ -24,17 +23,57 @@ async function revealWorld() {
   setHomeInert(false);
 }
 
-const book = createBook(async () => {
-  travelling = true;
-  status.textContent = 'ВОЗВРАЩАЕМСЯ К ОБЛАКАМ';
-  await new Promise((resolve) => {
-    if (!world) { resolve(); return; }
-    world.goTo('threshold', resolve);
+const veil = document.querySelector('.cloud-veil');
+const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+
+async function passClouds(changeScene) {
+  veil.hidden = false;
+  veil.style.opacity = '1';
+  experience.classList.add('in-flight');
+  const duration = reducedMotion.matches ? 500 : 2800;
+  const animations = [...veil.querySelectorAll('.veil-cloud')].map((cloud, i) => {
+    const direction = i % 2 ? -1 : 1;
+    const rotation = i === 1 ? 180 : 0;
+    const scale = [1.08, 1.2, 1.32][i];
+    const y = [12, -14, 0][i];
+    return cloud.animate([
+      { offset: 0, transform: `translate3d(${-direction * 130}%,${y}%,0) scale(${scale}) rotate(${rotation}deg)`, filter: `blur(${i * 2}px)` },
+      { offset: .42, transform: `translate3d(${-direction * 12}%,${y}%,0) scale(${scale}) rotate(${rotation}deg)`, filter: `blur(${i * 2}px)` },
+      { offset: .58, transform: `translate3d(${direction * 12}%,${y - 2}%,0) scale(${scale}) rotate(${rotation}deg)`, filter: `blur(${i * 2}px)` },
+      { offset: 1, transform: `translate3d(${direction * 130}%,${y - 8}%,0) scale(${scale}) rotate(${rotation}deg)`, filter: `blur(${i * 2}px)` },
+    ], { duration, easing: 'linear', fill: 'forwards' });
   });
-  place = 'threshold';
-  experience.dataset.place = place;
-  status.textContent = '';
-  document.querySelector('.flight-wash').style.opacity = '0';
+  await new Promise(resolve => {
+    function watch() {
+      if (Number(animations[0].currentTime) >= duration * .48) resolve();
+      else requestAnimationFrame(watch);
+    }
+    requestAnimationFrame(watch);
+  });
+  await changeScene();
+  experience.classList.remove('in-flight', 'castle-flight');
+  await Promise.all(animations.map(animation => animation.finished));
+  veil.hidden = true;
+  animations.forEach(animation => animation.cancel());
+}
+
+function flyTo(destination, onApproach, duration) {
+  return new Promise(resolve => {
+    if (!world) { onApproach?.(); resolve(); return; }
+    world.goTo(destination, resolve, onApproach, duration ?? (destination === 'book' ? 3.1 : 2.1));
+  });
+}
+
+const book = createBook(async () => {
+  if (travelling) return;
+  travelling = true;
+  const flight = flyTo('threshold', undefined, reducedMotion.matches ? .15 : 1.2);
+  await passClouds(async () => {
+    await flight;
+    book.hide();
+    place = 'threshold';
+    experience.dataset.place = place;
+  });
   travelling = false;
   setHomeInert(false);
   document.querySelector('.hero [data-action="journey"]').focus({ preventScroll: true });
@@ -42,37 +81,38 @@ const book = createBook(async () => {
 
 async function enterStory() {
   if (travelling || place !== 'threshold') return;
-  dialogs.forEach((dialog) => dialog.close());
+  dialogs.forEach(dialog => dialog.close());
   travelling = true;
   setHomeInert(true);
-  status.textContent = 'У КАЖДОЙ ЛЕГЕНДЫ БЫЛ ДОМ';
+  status.textContent = 'ГОТОВИМ ИСТОРИЮ';
   status.style.opacity = '1';
   await book.preload();
-  place = 'book';
-  experience.dataset.place = place;
-  if (world) {
-    await new Promise((resolve) => world.goTo('book', resolve, () => book.approach()));
-  } else book.approach();
-  book.open();
   status.style.opacity = '0';
+  experience.classList.add('castle-flight');
+  let approach;
+  const nearingCastle = new Promise(resolve => { approach = resolve; });
+  const flight = flyTo('book', approach);
+  await nearingCastle;
+  await passClouds(async () => {
+    place = 'book';
+    experience.dataset.place = place;
+    book.approach();
+    await new Promise(requestAnimationFrame);
+  });
+  await flight;
   travelling = false;
+  book.arrive();
 }
 
 function closeDialogs() {
   dialogs.forEach((dialog) => dialog.close());
 }
 
-document.querySelector('.contents-list').innerHTML = chapters.map((chapter, i) => `<div><span>${String(i + 1).padStart(2, '0')}</span><span>${chapter.title}</span></div>`).join('');
 document.addEventListener('click', (event) => {
   const action = event.target.closest('[data-action]')?.dataset.action;
   if (action === 'journey') enterStory();
-  if (action === 'chapters') document.querySelector('#chapters-dialog').showModal();
   if (action === 'about') document.querySelector('#about-dialog').showModal();
-  if (action === 'home' && place === 'book') book.close();
-});
-document.querySelector('.brand').addEventListener('click', (event) => {
-  event.preventDefault();
-  if (place === 'book') book.close();
+  if (action === 'home' && place === 'book') book.exit();
 });
 document.querySelectorAll('.dialog-close').forEach((button) => button.addEventListener('click', closeDialogs));
 dialogs.forEach((dialog) => dialog.addEventListener('click', (event) => {
@@ -80,8 +120,6 @@ dialogs.forEach((dialog) => dialog.addEventListener('click', (event) => {
   const rect = dialog.getBoundingClientRect();
   if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) dialog.close();
 }));
-document.querySelector('.island-label').addEventListener('pointerenter', () => world?.setHover(true));
-document.querySelector('.island-label').addEventListener('pointerleave', () => world?.setHover(false));
 
 setHomeInert(true);
 createWorld(document.querySelector('#world'), () => {})

@@ -46,7 +46,7 @@ function makeCloudTexture() {
 async function makeForeground() {
   const group = new THREE.Group();
   group.position.set(2, -1.8, 17);
-  const texture = await new THREE.TextureLoader().loadAsync('/assets/heroine-story.webp');
+  const texture = await new THREE.TextureLoader().loadAsync(`${import.meta.env.BASE_URL}assets/heroine-story.webp`);
   texture.colorSpace = THREE.SRGBColorSpace;
   const wind = { value: 0 };
   const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true, depthWrite: false });
@@ -68,7 +68,7 @@ async function makeForeground() {
   const foreground = mesh(new THREE.PlaneGeometry(8.4, 10.55, 64, 80), material, group, [0, .8, 0]);
   foreground.castShadow = false;
   foreground.receiveShadow = false;
-  return { group, wind };
+  return { group, wind, material };
 }
 
 export async function createWorld(canvas, onReady) {
@@ -113,7 +113,7 @@ export async function createWorld(canvas, onReady) {
   heroGroup.add(islandGroup);
   const islandMaterial = new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false });
   const island = mesh(new THREE.PlaneGeometry(29, 19.33), islandMaterial, islandGroup);
-  const islandTexture = await new THREE.TextureLoader().loadAsync('/assets/island-castle.webp');
+  const islandTexture = await new THREE.TextureLoader().loadAsync(`${import.meta.env.BASE_URL}assets/island-castle.webp`);
   islandTexture.colorSpace = THREE.SRGBColorSpace;
   islandMaterial.map = islandTexture;
   islandMaterial.needsUpdate = true;
@@ -122,6 +122,23 @@ export async function createWorld(canvas, onReady) {
   const foregroundScene = new THREE.Scene();
   foregroundScene.add(foreground.group);
   const foregroundCamera = camera.clone();
+  const sky = document.querySelector('.sky');
+  const depthLayers = [
+    { element: document.querySelector('.hero'), distance: 24, tilt: .7 },
+    { element: document.querySelector('.footer'), distance: 9, tilt: .25 },
+  ];
+  const finePointer = matchMedia('(hover: hover) and (pointer: fine)');
+  const nearClouds = [];
+  for (const [x, y, z, width] of [[-8, -4, 23, 11], [9, -4.5, 24, 10], [-5, -6, 26, 13]]) {
+    const material = new THREE.SpriteMaterial({ map: cloudTexture, color: '#c5d5de', transparent: true, opacity: .48, depthWrite: false });
+    const cloud = new THREE.Sprite(material);
+    cloud.position.set(x, y, z);
+    cloud.scale.set(width, width * .38, 1);
+    cloud.userData.origin = cloud.position.clone();
+    cloud.renderOrder = 2;
+    foregroundScene.add(cloud);
+    nearClouds.push(cloud);
+  }
   renderer.autoClear = false;
   const distantIslands = [];
   for (const [x, y, z, size] of [[-11, 0, -12, .12], [27, 3, -18, .16], [22, -5, -9, .08]]) {
@@ -177,7 +194,7 @@ export async function createWorld(canvas, onReady) {
   const lookTarget = new THREE.Vector3(0, 4, 0);
   const poses = {
     threshold: { position: new THREE.Vector3(0, 7, 38), target: new THREE.Vector3(0, 4, 0) },
-    book: { position: new THREE.Vector3(10, 7, 10), target: new THREE.Vector3(10, 7, 0) },
+    book: { position: new THREE.Vector3(8, 8, 20), target: new THREE.Vector3(10, 9, 0) },
   };
   const basePosition = poses.threshold.position.clone();
   const baseTarget = poses.threshold.target.clone();
@@ -207,10 +224,10 @@ export async function createWorld(canvas, onReady) {
     foregroundCamera.updateProjectionMatrix();
   }
 
-  function goTo(next, onComplete, onApproach) {
+  function goTo(next, onComplete, onApproach, duration) {
     const start = basePosition.clone();
     const target = baseTarget.clone();
-    transition = { from: place, to: next, start, target, progress: 0, duration: reducedMotion.matches ? .25 : place === 'threshold' || next === 'threshold' ? 5.4 : 3.2, onComplete, onApproach, approached: false };
+    transition = { from: place, to: next, start, target, progress: 0, duration: reducedMotion.matches ? .15 : duration ?? 5.4, onComplete, onApproach, approached: false };
     place = next;
     if (next !== 'threshold') renderer.shadowMap.needsUpdate = true;
   }
@@ -224,16 +241,20 @@ export async function createWorld(canvas, onReady) {
     basePosition.lerpVectors(transition.start, next.position, eased);
     baseTarget.lerpVectors(transition.target, next.target, eased);
     if (!reducedMotion.matches) basePosition.y += Math.sin(p * Math.PI) * 2;
-    let reveal = 1;
-    if (transition.from === 'threshold') reveal = THREE.MathUtils.smoothstep(p, .4, .64);
-    if (transition.to === 'threshold') reveal = 1 - THREE.MathUtils.smoothstep(p, .35, .65);
-    heroGroup.visible = reveal < 1;
-    islandMaterial.opacity = 1 - reveal;
-    foreground.group.visible = reveal < .4;
-    if (transition.to === 'book' && p > .7 && !transition.approached) { transition.approached = true; transition.onApproach?.(); }
-    const wash = transition.from === 'threshold' || transition.to === 'threshold' ? Math.pow(Math.sin(p * Math.PI), 12) * .87 : 0;
-    document.querySelector('.flight-wash').style.opacity = wash;
+    const returning = transition.to === 'threshold';
+    heroGroup.visible = true;
+    islandMaterial.opacity = 1;
+    const foregroundReveal = THREE.MathUtils.smoothstep(p, .08, .34);
+    foreground.material.opacity = returning ? foregroundReveal : 1 - foregroundReveal;
+    foreground.group.visible = foreground.material.opacity > .001;
+    canvas.style.filter = 'none';
+    if (transition.to === 'book' && p > .36 && !transition.approached) {
+      transition.approached = true;
+      transition.onApproach?.();
+    }
     if (p === 1) {
+      canvas.style.filter = 'none';
+      foreground.material.opacity = 1;
       const done = transition.onComplete;
       transition = null;
       heroGroup.visible = place === 'threshold';
@@ -249,13 +270,17 @@ export async function createWorld(canvas, onReady) {
     previousTime = time;
     elapsed += dt;
     updateTransition(dt);
+    const depthActive = place === 'threshold' && !transition && finePointer.matches && !reducedMotion.matches;
+    if (!depthActive) pointer.set(0, 0);
     smoothPointer.lerp(pointer, 1 - Math.exp(-dt * 2));
+    if (reducedMotion.matches || smoothPointer.lengthSq() < .000001) smoothPointer.set(0, 0);
     const motion = reducedMotion.matches ? 0 : 1;
     camera.position.copy(basePosition);
-    camera.position.x += smoothPointer.x * .7 * motion;
-    camera.position.y += smoothPointer.y * .35 * motion;
+    camera.position.x += smoothPointer.x * 1.9 * motion;
+    camera.position.y += smoothPointer.y * .8 * motion;
     lookTarget.copy(baseTarget);
-    lookTarget.x += smoothPointer.x * .18 * motion;
+    lookTarget.x += smoothPointer.x * 1.05 * motion;
+    lookTarget.y += smoothPointer.y * .55 * motion;
     camera.lookAt(lookTarget);
     if (cinematic && !transition && motion) {
       camera.position.x += Math.sin(elapsed * .14) * 2;
@@ -265,12 +290,24 @@ export async function createWorld(canvas, onReady) {
     const islandBaseY = innerWidth < 600 ? -3 : 6.5;
     islandGroup.position.y = islandBaseY + Math.sin(elapsed * .36) * .27 * motion;
     islandGroup.rotation.z = Math.sin(elapsed * .19) * .006 * motion;
-    islandGroup.position.x = (innerWidth < 600 ? 1.2 : 10.4) + smoothPointer.x * .17 * motion;
+    islandGroup.position.x = (innerWidth < 600 ? 1.2 : 10.4);
     islandMaterial.color.setScalar(.88 + hover * .015);
     distantIslands.forEach((object, i) => { object.position.y += Math.sin(elapsed * .4 + i) * dt * .06 * motion; });
     clouds.forEach((cloud) => {
       cloud.position.x += dt * cloud.userData.speed * motion;
       if (cloud.position.x > 50) cloud.position.x = -50;
+    });
+    sky.style.transform = `translate3d(${-smoothPointer.x * 7}px,${-smoothPointer.y * 4}px,0) scale(1.045)`;
+    depthLayers.forEach(({ element, distance, tilt }) => {
+      const x = -smoothPointer.x * distance;
+      const y = -smoothPointer.y * distance * .55;
+      element.style.transform = `perspective(1400px) translate3d(${x}px,${y}px,0) rotateY(${-smoothPointer.x * tilt}deg) rotateX(${smoothPointer.y * tilt}deg)`;
+    });
+    nearClouds.forEach((cloud, i) => {
+      const origin = cloud.userData.origin;
+      cloud.visible = foreground.group.visible && innerWidth >= 700;
+      cloud.position.x = origin.x - smoothPointer.x * (1.05 + i * .2) * motion + Math.sin(elapsed * .07 + i) * .14 * motion;
+      cloud.position.y = origin.y - smoothPointer.y * .45 * motion;
     });
     foreground.wind.value = elapsed * motion;
     waterfalls.forEach(({ points, height, seeds }) => {
@@ -291,9 +328,11 @@ export async function createWorld(canvas, onReady) {
   }
 
   addEventListener('pointermove', (event) => {
+    if (event.pointerType !== 'mouse' || place !== 'threshold' || transition) return;
     pointer.set((event.clientX / innerWidth - .5) * 2, -(event.clientY / innerHeight - .5) * 2);
   }, { passive: true });
-  addEventListener('pointerleave', () => pointer.set(0, 0));
+  document.documentElement.addEventListener('pointerleave', () => pointer.set(0, 0));
+  addEventListener('blur', () => pointer.set(0, 0));
   addEventListener('resize', resize);
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) cancelAnimationFrame(frame);

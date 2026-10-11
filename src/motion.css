@@ -11,3 +11,4 @@
 .intro-curtain.opening .intro-caption{opacity:0}
 @media(prefers-reduced-motion:reduce){.intro-curtain.opening .intro-plate{transform:none;opacity:0;transition:opacity .15s;transition-delay:0s}.intro-caption{transition:none}}
 #experience:not([data-place="threshold"]) .hero,#experience:not([data-place="threshold"]) .island-label,#experience:not([data-place="threshold"]) .footer{opacity:0;pointer-events:none;animation:none;transition:opacity .6s}#experience:not([data-place="threshold"]) .hero button,#experience:not([data-place="threshold"]) .footer button{pointer-events:none}#experience:not([data-place="threshold"]) .sky-shade{background:linear-gradient(90deg,#082b42b0,transparent 65%),linear-gradient(0deg,#07233988,transparent 40%)}.arrival:not([hidden]){animation:reveal 1.3s both}
+@media(hover:hover) and (pointer:fine) and (prefers-reduced-motion:no-preference){.hero,.island-label,.footer{will-change:transform;transform-origin:50% 50%;backface-visibility:hidden}}

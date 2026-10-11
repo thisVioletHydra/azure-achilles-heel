@@ -40,3 +40,7 @@ Illustrations share soft painterly fantasy rendering and ivory, gold and azure c
 ## Castle-focused revision
 
 `island-castle.webp` replaces the broad meadow composition: grand layered ivory Gothic castle with azure roofs, a compact rounded floating foundation, restrained foliage and dusk light. Built-in ImageGen edit from `island-story.webp`; no bright meadow foreground or repeated pointed rock teeth. Scene exposure is restrained and three smaller floating islands frame the main castle.
+
+## Cloud flight transition
+
+`cloud-flight.webp`: built-in ImageGen-generated transparent cinematic cloud bank with detailed cumulus forms, blue-grey shadow folds and subdued dusk rim light. Three independently animated copies cross the viewport and cover the scene change. No uniform color overlay is used. Camera flight remains visible until clouds arrive; only the passing cloud layers receive depth-dependent blur; the castle remains crisp. The cloud passage is continuous, and the scene switches near its midpoint.

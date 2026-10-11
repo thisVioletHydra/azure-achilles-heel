@@ -4,7 +4,7 @@ const numbers = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII'];
 
 function illustration(chapter, index) {
   return `<div class="page-running">ИСТОРИЯ ЛАЗУРНОЙ <span>ЧИЛЛИ ХИИЛ</span></div>
-    <div class="illustration-window"><img class="story-art" src="/assets/story/${chapter.image}.webp" alt="${chapter.subtitle}" draggable="false" />
+    <div class="illustration-window"><img class="story-art" src="${import.meta.env.BASE_URL}assets/story/${chapter.image}.webp" alt="${chapter.subtitle}" draggable="false" />
     ${chapter.memories.map((memory, i) => `<button class="memory-point" style="--x:${memory.x}%;--y:${memory.y}%" aria-label="Воспоминание: ${memory.title}" aria-describedby="memory-${index}-${i}"><span class="memory-mark">${i + 1}</span><span class="memory-tooltip" role="tooltip" id="memory-${index}-${i}"><strong>${memory.title}</strong>${memory.text}</span></button>`).join('')}</div>
     <div class="illustration-caption"><span>✧</span>${chapter.subtitle}<span>✧</span></div>
     <span class="page-number">${index * 2 + 1}</span>`;
@@ -24,7 +24,7 @@ function removeCloneIds(element) {
   element.setAttribute('aria-hidden', 'true');
 }
 
-export function createBook(onClose) {
+export function createBook(onExit) {
   const root = document.querySelector('#storybook');
   const book = root.querySelector('.book');
   const left = root.querySelector('.page-illustration');
@@ -42,6 +42,18 @@ export function createBook(onClose) {
 
   function render() {
     const chapter = chapters[index];
+    // Each chapter transfers one sheet from the right block to the left board.
+    function stackShadow(sheets) {
+      const layers = [];
+      for (let sheet = 1; sheet <= sheets; sheet++) {
+        layers.push(`0 ${sheet * 2}px 0 ${sheet % 2 ? '#cdbd9e' : '#eee4cf'}`);
+      }
+      layers.push(`0 ${sheets * 2 + 3}px 0 #264550`);
+      layers.push(`0 ${sheets * 2 + 5}px 0 #183640`);
+      return layers.join(',');
+    }
+    book.style.setProperty('--left-stack', stackShadow(index));
+    book.style.setProperty('--right-stack', stackShadow(chapters.length - index));
     left.innerHTML = illustration(chapter, index);
     right.innerHTML = reading(chapter, index);
     root.dataset.mood = chapter.mood;
@@ -58,7 +70,7 @@ export function createBook(onClose) {
 
   function createTurn(direction) {
     const target = index + direction;
-    if (turn || !isOpen || isClosing || target < 0 || target >= chapters.length) return false;
+    if (turn || !isOpen || isClosing || !root.classList.contains('reading-ready') || target < 0 || target >= chapters.length) return false;
     const oldIndex = index;
     const leaf = document.createElement('div');
     leaf.className = `turn-leaf ${direction > 0 ? 'turn-forward' : 'turn-backward'}`;
@@ -173,7 +185,7 @@ export function createBook(onClose) {
   function preload() {
     return Promise.allSettled(chapters.map((chapter) => {
       const img = new Image();
-      img.src = `/assets/story/${chapter.image}.webp`;
+      img.src = `${import.meta.env.BASE_URL}assets/story/${chapter.image}.webp`;
       return img.decode();
     }));
   }
@@ -181,18 +193,39 @@ export function createBook(onClose) {
   function approach() {
     root.hidden = false;
     root.inert = true;
-    root.classList.remove('book-open', 'book-closing', 'book-returning');
+    root.classList.remove('book-open', 'book-closing', 'book-returning', 'reading-ready');
+    root.classList.add('book-closed');
     index = 0;
     render();
     root.classList.add('book-arriving');
   }
 
-  function open() {
+  function arrive() {
+    root.inert = false;
+    root.querySelector('.book-cover').focus({ preventScroll: true });
+    setPagesInert(true);
+  }
+
+  function setPagesInert(value) {
+    left.inert = right.inert = value;
+    root.querySelector('.book-footer').inert = value;
+    root.querySelectorAll('.page-grip').forEach(grip => { grip.inert = value; });
+  }
+
+  async function open() {
+    if (isOpen || isClosing || root.inert) return;
+    root.classList.remove('book-closed', 'book-closing');
     root.hidden = false;
     root.inert = false;
     isOpen = true;
     root.classList.add('book-open');
     root.querySelector('.book-close').focus({ preventScroll: true });
+    const cover = root.querySelector('.book-cover');
+    cover.getBoundingClientRect();
+    await Promise.allSettled(cover.getAnimations().map(animation => animation.finished));
+    if (!isOpen || isClosing) return;
+    root.classList.add('reading-ready');
+    setPagesInert(false);
   }
 
   async function close() {
@@ -200,22 +233,46 @@ export function createBook(onClose) {
     isClosing = true;
     root.inert = true;
     root.classList.add('book-closing');
-    root.classList.remove('book-open');
+    root.classList.remove('book-open', 'reading-ready');
     if (!reducedMotion.matches) {
       await Promise.allSettled(root.querySelector('.book-cover').getAnimations().map((a) => a.finished));
     }
     isOpen = false;
-    root.classList.add('book-returning');
-    await onClose();
-    root.hidden = true;
-    root.classList.remove('book-arriving', 'book-closing');
+    root.inert = false;
+    root.classList.remove('book-closing');
+    root.classList.add('book-closed');
+    setPagesInert(true);
     isClosing = false;
+    root.querySelector('.book-cover').focus({ preventScroll: true });
   }
+
+  async function exit() {
+    if (turn || isClosing) return;
+    if (isOpen) await close();
+    root.inert = true;
+    await onExit();
+  }
+
+  function hide() {
+    root.hidden = true;
+    root.classList.remove('book-arriving', 'book-returning');
+  }
+
+  left.addEventListener('click', (event) => {
+    if (index === 0 && isOpen && !turn && !event.target.closest('button')) close();
+  });
+
+  left.addEventListener('pointerenter', () => book.classList.add('hover-left'));
+  left.addEventListener('pointerleave', () => book.classList.remove('hover-left'));
+  right.addEventListener('pointerenter', () => book.classList.add('hover-right'));
+  right.addEventListener('pointerleave', () => book.classList.remove('hover-right'));
 
   previous.addEventListener('click', () => flip(-1));
   next.addEventListener('click', () => flip(1));
   root.addEventListener('click', (event) => {
+    if (event.target.closest('[data-book-open]')) open();
     if (event.target.closest('[data-book-close]')) close();
+    if (event.target.closest('[data-book-exit]')) exit();
     const memory = event.target.closest('.memory-point');
     if (memory) {
       root.querySelectorAll('.memory-point.open').forEach((point) => { if (point !== memory) point.classList.remove('open'); });
@@ -279,5 +336,5 @@ export function createBook(onClose) {
     }
   });
   render();
-  return { preload, approach, open, close };
+  return { preload, approach, arrive, open, close, exit, hide };
 }

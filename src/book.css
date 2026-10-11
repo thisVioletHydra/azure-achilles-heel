@@ -5,7 +5,7 @@
 
 #storybook.book-returning{opacity:0;pointer-events:none;transition:opacity 1.1s}
 
-.story-art{mask-image:radial-gradient(ellipse 65% 66% at 50% 50%,#000 56%,#000e 70%,transparent 91%)}
+.story-art{}
 #storybook[data-mood="ash"]{background:radial-gradient(ellipse at 50% 44%,#ddd5ca,#a4a6a5 70%,#6d777e)}#storybook[data-mood="rain"]{background:radial-gradient(ellipse at 50% 44%,#cbd2d4,#8e9fae 70%,#52687c)}#storybook[data-mood="dawn"]{background:radial-gradient(ellipse at 50% 44%,#ede3d0,#acb7b4 70%,#768d92)}
 @media(max-width:699px){.book-header{position:sticky;top:0;z-index:25;background:#c4cfcbef;backdrop-filter:blur(10px)}.book-wordmark{white-space:nowrap;font-size:17px;letter-spacing:2px}.book-wordmark span{display:none}.book-progress,.book-close{white-space:nowrap}.book-close{font-size:8px}.book-footer{position:sticky;bottom:0;background:#c4cfcbef;border-radius:6px;padding:8px 14px;z-index:25;backdrop-filter:blur(10px)}}
 /* Flexible sheet: narrow connected surfaces form a continuous paper arc. */
@@ -15,3 +15,78 @@
 @media(prefers-reduced-motion:reduce) and (min-width:700px){.book,.book-open .book{transform:none}.book-cover,.book>.page-illustration,.book-spine{transition:none}}
 /* Filters flatten nested 3D surfaces; paper curvature needs the depth intact. */
 .book{filter:none}
+/* The book rests on a desk until the reader opens it. */
+#storybook{background:radial-gradient(ellipse at 50% 35%,#606b65,#273b3e 80%)}.book-stage:before{content:'';position:absolute;inset:-40px -20% -200px;background:repeating-linear-gradient(2deg,transparent 0 80px,#17282b15 82px 84px),radial-gradient(ellipse at 50% 35%,#888a74,#485953 70%);transform:rotateX(16deg);z-index:-1;box-shadow:inset 0 0 160px #14292b80}.book-stage{position:relative;isolation:isolate}.book-header{color:#ede2c8}.book-cover{pointer-events:auto;cursor:pointer;padding:0;text-align:center}.book-cover:focus-visible{outline:2px solid #e3c58b;outline-offset:8px}.book-open .book-cover{pointer-events:none}.closed-book-actions{text-align:center;position:relative;color:#e9dfc6;font-size:13px;font-style:italic;margin:25px 0}.book-exit{display:block;margin:18px auto;padding:11px 22px;border:1px solid #dfcca377;border-radius:30px;font-family:Manrope,sans-serif;font-style:normal;font-size:11px}.book-closed .book-header{opacity:1}.book-closed .book-progress,.book-closed .book-close,.book-closed .book-footer,.book-closed .book-hint,.book-closing .book-footer,.book-closing .book-hint{visibility:hidden}.book-closed .book-footer,.book-closed .book-hint{display:none}.book-open .closed-book-actions,.book-closing .closed-book-actions{display:none}.book-closing .book-cover{pointer-events:none}.book-closed .page-grip{display:none}.book-closed .book>.paper-page{visibility:hidden}.book-closed .book>.page-reading{visibility:visible}.book-closed .book>.page-reading>*{visibility:hidden}.book-open .book-footer,.book-open .book-hint{color:#e9dfc6}
+.cloud-veil{position:absolute;inset:-5%;z-index:60;pointer-events:auto;background:radial-gradient(ellipse at 40% 60%,#f1f3f0,#ccdce0 70%);overflow:hidden;opacity:0}.cloud-veil[hidden]{display:none}.veil-cloud{position:absolute;inset:-25%;background:radial-gradient(ellipse at 24% 62%,#fff 0 12%,transparent 40%),radial-gradient(ellipse at 73% 42%,#f9faf5 0 15%,transparent 42%),radial-gradient(ellipse at 50% 85%,#a9c0cb 0 10%,transparent 45%);filter:blur(24px)}.veil-two{transform:rotate(170deg) scale(1.2);opacity:.6}.veil-three{background:url('/assets/sky.webp') center 80%/cover;opacity:.13;filter:blur(18px)}.in-flight #world,.in-flight .sky,.in-flight .book-stage{filter:blur(12px);transition:filter .7s}.sky,#world,.book-stage{transition:filter .9s}
+@media(max-width:699px){.book-closed .book>.page-reading{display:none}.book-closed .book{height:450px}.book-closed .book-cover{height:450px}.closed-book-actions{margin:22px 15px}.book-stage:before{inset:-30px -20% -1200px}.book-header{background:#314649ed}.book-closed .book-header{justify-content:space-between}.book-closed .book{transform:none}}
+@media(prefers-reduced-motion:reduce){.in-flight #world,.in-flight .sky,.in-flight .book-stage{filter:none;transition:none}.veil-cloud{filter:none}}
+/* Cloud geometry covers the cut. There is no full-screen color wash. */
+.cloud-veil{inset:0;background:none;opacity:1;overflow:hidden}.veil-cloud{inset:-12%;background:url('/assets/cloud-flight.webp') center/contain no-repeat;opacity:1;filter:none;will-change:transform;transform:none}.veil-two{inset:-20%;background-position:55% 45%;opacity:1;transform:none}.veil-three{inset:-15%;background-position:45% 60%;opacity:1;transform:none}.flight-wash{display:none}.castle-flight .hero,.castle-flight .footer,.castle-flight .header{opacity:0;transition:opacity .5s;pointer-events:none}.in-flight #world{transition:none}#world{transition:opacity .8s}.in-flight .sky{filter:blur(4px)}
+@media(prefers-reduced-motion:reduce){.castle-flight .hero,.castle-flight .footer,.castle-flight .header{transition:none}.in-flight .sky{filter:none}}
+/* Keep the destination crisp; only the passing foreground cloud banks blur. */
+.in-flight #world,.in-flight .sky,.in-flight .book-stage{filter:none;transition:none}#storybook.book-arriving{transition:none}.veil-cloud{inset:-22%;background-size:cover}.veil-two{inset:-26%}.veil-three{inset:-28%}
+/* Permanent desk lighting; chapter mood never recolors the room. */
+#storybook[data-mood]{background:radial-gradient(ellipse at 50% 35%,#606b65,#273b3e 80%)}
+/* Rounded paper block and binding, rather than square stacked stripes. */
+.book,.book-open .book{box-shadow:none;border-radius:10px 16px 16px 10px}.book>.page-reading{box-shadow:none!important}.book:before{content:'';position:absolute;z-index:-1;left:50%;top:8px;width:50%;height:calc(100% + 12px);border-radius:9px 15px 17px 11px;background:repeating-linear-gradient(0deg,#bbaa8c 0 1px,#e8ddc7 1px 3px,#cdbd9e 3px 4px);border-bottom:7px solid #264550;border-right:3px solid #203e49;box-shadow:4px 12px 18px #0d202950,inset -5px 0 9px #8c775c60;transform:translateZ(-3px);transition:left 1.6s,width 1.6s}.book-open .book:before{left:0;width:100%}.book-cover{border-radius:10px 17px 17px 10px;border:2px solid #5e8085;box-shadow:inset 2px 2px 3px #aac0ac35,inset -4px -5px 7px #071e2b80,3px 6px 0 #173944,4px 8px 7px #102c3955}.page-illustration{border-radius:10px 0 0 9px}.page-reading{border-radius:0 15px 13px 0}.book-open:not(.reading-ready) .book>.page-illustration,.book-closing .book>.page-illustration{visibility:hidden;opacity:0;transition:none}.reading-ready .book>.page-illustration{visibility:visible;opacity:1;transition:none}.book-spine{visibility:hidden}.reading-ready .book-spine{visibility:visible}
+/* Explicit bottom-corner handles show a paper fold on page hover or focus. */
+.page-grip{top:auto;bottom:0;width:62px;height:64px;opacity:1;overflow:visible;border-radius:0;z-index:14}.page-grip:before{content:'';position:absolute;inset:8px 0 0;background:linear-gradient(135deg,#baaa8b,#fffaf0 45%,#ded0b6 64%,#98886a);clip-path:polygon(100% 0,0 100%,100% 100%);filter:drop-shadow(-3px -3px 4px #76604455);opacity:0;transform:scale(.35);transform-origin:bottom right;transition:transform .25s,opacity .25s}.grip-left:before{clip-path:polygon(0 0,0 100%,100% 100%);transform-origin:bottom left;background:linear-gradient(225deg,#baaa8b,#fffaf0 45%,#ded0b6 64%,#98886a)}.hover-right .grip-right:before,.hover-left .grip-left:before,.page-grip:hover:before,.page-grip:focus-visible:before{opacity:1;transform:scale(1)}.page-grip[aria-disabled="true"]{visibility:hidden}.book:not(.hover-left):not(.hover-right) .page-grip:focus-visible{background:none}.book-open:not(.reading-ready) .page-grip{visibility:hidden}
+/* Preserve the original illustrated edges and colors. */
+.story-art{display:block;width:auto;max-width:100%;margin-inline:auto;}.memory-point{z-index:3}.memory-point:hover,.memory-point.open,.memory-point:focus-visible{z-index:15}
+@media(max-width:699px){.book:before{left:0;width:100%;height:calc(100% + 8px)}.page-grip{width:48px;height:54px}.book-closed .book:before{height:458px}.book-cover{border-radius:10px 15px 15px 10px}}
+@media(prefers-reduced-motion:reduce){.book:before,.page-grip:before{transition:none}}
+
+/* Both halves keep their dimensions: the left board pivots about the spine. */
+@media(min-width:700px){
+  .book,.book-open .book{background:transparent}
+  .book:before,.book-open .book:before{left:50%;width:50%;transition:none}
+  .book>.page-illustration{visibility:visible!important;opacity:1!important;transform-origin:right center;transform:rotateY(180deg);backface-visibility:hidden;transition:transform 1.7s cubic-bezier(.3,.05,.2,1)!important;box-shadow:0 3px #d1c4a8,0 6px #f5ebd6,0 9px #baad93,0 12px #f4e7cf,0 17px #264550}
+  .book-open .book>.page-illustration{transform:rotateY(0deg)}
+  .book-closing .book>.page-illustration{transform:rotateY(180deg);transition:transform 1.3s ease!important}
+  .book-cover:after{display:none}
+  .book-closed .book>.page-illustration>*{visibility:hidden}
+}
+@media(prefers-reduced-motion:reduce){.book>.page-illustration{transition:none!important}}
+
+/* Page edges belong to their own board, never a separate oversized slab. */
+@media(min-width:700px){
+  .book:before{display:none}
+  .book>.page-illustration{box-shadow:var(--left-stack)!important;border-radius:10px 1px 2px 9px}
+  .book>.page-reading{box-shadow:var(--right-stack)!important;border-radius:1px 15px 13px 2px}
+  .book-closed .book>.page-reading{box-shadow:0 2px #cdbd9e,0 4px #eee4cf,0 6px #cdbd9e,0 8px #eee4cf,0 10px #cdbd9e,0 12px #eee4cf,0 14px #cdbd9e,0 16px #eee4cf,0 19px #264550,0 21px #183640!important}
+  .book-spine{left:calc(50% - 10px);width:20px;top:0;bottom:0;opacity:0;visibility:visible;background:linear-gradient(90deg in oklab,transparent,#826b4b25 28%,#503b2845 49%,#fff8e750 66%,transparent);border-radius:0;box-shadow:none;transition:opacity .35s .3s}
+  .book-open .book-spine{visibility:visible;opacity:1}
+  .book-closing .book-spine{visibility:visible;opacity:0;transition:opacity .3s}
+  .book-spine:after{display:none}
+}
+
+/* A lifted curved sheet exposes its reverse and casts a separate soft shadow. */
+.page-grip{width:120px;height:150px}
+.page-grip:before{inset:0;clip-path:none;background:url('/assets/page-curl.svg') center/100% 100% no-repeat;filter:none;transform:scale(.6);transform-origin:bottom right}
+.grip-left:before{clip-path:none;background:url('/assets/page-curl.svg') center/100% 100% no-repeat;transform:scale(.6) scaleX(-1);transform-origin:center}
+.hover-left .grip-left:before,.grip-left:hover:before,.grip-left:focus-visible:before{transform:scaleX(-1)}
+.book-closing .page-grip{visibility:hidden}
+@media(max-width:699px){.page-grip{width:82px;height:103px}}
+/* Closed page block sits inside the cover, with one clipped rounded edge. */
+@media(min-width:700px){
+  .book-closed .book>.page-reading{box-shadow:none!important;background:transparent}
+  .book-closed .book:before{display:block;left:calc(50% + 6px);top:calc(100% - 5px);width:calc(50% - 12px);height:20px;border:0;border-bottom:4px solid #203e49;border-radius:0 0 12px 8px;background:repeating-linear-gradient(0deg,#c9b99b 0 1px,#eee4cf 1px 3px);box-shadow:0 4px 6px #142b3330;transform:translateZ(-3px);transition:none}
+}
+/* Mirror direction is constant; hover only reveals the corner. */
+.book .page-grip:before{transition:opacity .2s;transform:scale(1)}
+.book .grip-left:before,.book .grip-left:hover:before,.book .grip-left:focus-visible:before{transform:scaleX(-1)}
+.book .page-grip:focus-visible{outline:none;background:none}
+.book .page-grip:focus-visible:before{filter:drop-shadow(0 0 3px #b08d49)}
+
+/* The book fills tall desktop views; the desk is one continuous surface. */
+@media(min-width:1400px){
+ .book{width:min(88vw,calc((100svh - 190px)*1.72));height:calc(100svh - 190px);min-height:540px;max-height:1120px}
+ .book-footer{width:min(88vw,calc((100svh - 190px)*1.72));margin-top:24px}
+ .chapter-text{font-size:clamp(14px,1.05vw,22px)}
+ .chapter-copy h2{font-size:clamp(44px,3vw,68px)}
+ .chapter-copy blockquote{font-size:clamp(13px,1vw,20px)}
+ .book-cover .cover-title{font-size:clamp(55px,4vw,100px)}
+}
+#storybook[data-mood]{background:radial-gradient(ellipse at 50% 40%,#737561,#354b46 80%)}
+.book-stage:before{position:fixed;inset:0;transform:none;background:repeating-linear-gradient(2deg,transparent 0 110px,#17282b0b 112px 114px);box-shadow:inset 0 0 180px #14292b50}
+#storybook[data-chapter="0"].reading-ready .book>.page-illustration{cursor:pointer}
