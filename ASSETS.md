@@ -36,3 +36,7 @@ All replacement artwork was generated with the built-in ImageGen tool. User-supp
 - `story/08-wedding.webp`: heroine and prince wedding, Drake beside them, flowers, bread and the remembered apron.
 
 Illustrations share soft painterly fantasy rendering and ivory, gold and azure colors. Generated PNGs retain their original locations under Codex's generated_images directory; optimized WebP copies ship with the project. Earlier island and foreground assets are retained as historical source assets but no longer referenced by the scene.
+
+## Castle-focused revision
+
+`island-castle.webp` replaces the broad meadow composition: grand layered ivory Gothic castle with azure roofs, a compact rounded floating foundation, restrained foliage and dusk light. Built-in ImageGen edit from `island-story.webp`; no bright meadow foreground or repeated pointed rock teeth. Scene exposure is restrained and three smaller floating islands frame the main castle.

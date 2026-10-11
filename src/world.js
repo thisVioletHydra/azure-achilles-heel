@@ -113,7 +113,7 @@ export async function createWorld(canvas, onReady) {
   heroGroup.add(islandGroup);
   const islandMaterial = new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false });
   const island = mesh(new THREE.PlaneGeometry(29, 19.33), islandMaterial, islandGroup);
-  const islandTexture = await new THREE.TextureLoader().loadAsync('/assets/island-story.webp');
+  const islandTexture = await new THREE.TextureLoader().loadAsync('/assets/island-castle.webp');
   islandTexture.colorSpace = THREE.SRGBColorSpace;
   islandMaterial.map = islandTexture;
   islandMaterial.needsUpdate = true;
@@ -124,9 +124,9 @@ export async function createWorld(canvas, onReady) {
   const foregroundCamera = camera.clone();
   renderer.autoClear = false;
   const distantIslands = [];
-  for (const [x, y, z, size] of [[25, 4, -16, .13]]) {
+  for (const [x, y, z, size] of [[-11, 0, -12, .12], [27, 3, -18, .16], [22, -5, -9, .08]]) {
     const material = islandMaterial.clone();
-    material.opacity = .55;
+    material.opacity = .65;
     const remote = mesh(new THREE.PlaneGeometry(29, 19.33), material, heroGroup, [x, y, z], [size, size, size]);
     distantIslands.push(remote);
   }
@@ -266,7 +266,7 @@ export async function createWorld(canvas, onReady) {
     islandGroup.position.y = islandBaseY + Math.sin(elapsed * .36) * .27 * motion;
     islandGroup.rotation.z = Math.sin(elapsed * .19) * .006 * motion;
     islandGroup.position.x = (innerWidth < 600 ? 1.2 : 10.4) + smoothPointer.x * .17 * motion;
-    islandMaterial.color.setScalar(1 + hover * .035);
+    islandMaterial.color.setScalar(.88 + hover * .015);
     distantIslands.forEach((object, i) => { object.position.y += Math.sin(elapsed * .4 + i) * dt * .06 * motion; });
     clouds.forEach((cloud) => {
       cloud.position.x += dt * cloud.userData.speed * motion;

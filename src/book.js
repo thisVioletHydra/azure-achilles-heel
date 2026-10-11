@@ -74,9 +74,41 @@ export function createBook(onClose) {
     still.classList.add('turn-still');
     removeCloneIds(still);
     turn = { leaf, still, direction, oldIndex, target, progress: 0 };
-    index = target;
-    render();
+    // The old opposite page remains in place until the turned sheet lands.
+    if (direction > 0) right.innerHTML = reading(chapters[target], target);
+    else left.innerHTML = illustration(chapters[target], target);
+    const width = book.clientWidth / 2;
+    const height = book.clientHeight;
+    const slices = [];
+    const count = 20;
+    for (let i = 0; i < count; i++) {
+      const slice = document.createElement('div');
+      slice.className = 'paper-slice';
+      slice.style.width = `${width / count + .7}px`;
+      slice.style.transformOrigin = direction > 0 ? 'left center' : 'right center';
+      for (const [side, original] of [['front', face], ['back', back]]) {
+        const surface = document.createElement('div');
+        surface.className = `slice-surface slice-${side}`;
+        const content = original.cloneNode(true);
+        content.style.width = `${width}px`;
+        content.style.height = `${height}px`;
+        const offset = side === 'front' ? i : count - 1 - i;
+        const column = direction > 0 ? offset : count - 1 - offset;
+        content.style.left = `${-column * width / count}px`;
+        surface.append(content);
+        slice.append(surface);
+      }
+      slices.push(slice);
+      leaf.append(slice);
+    }
+    face.remove();
+    back.remove();
+    removeCloneIds(leaf);
+    turn.slices = slices;
+    turn.width = width;
+    previous.disabled = next.disabled = true;
     book.append(still, leaf);
+    pose(0);
     dots.inert = true;
     return true;
   }
@@ -84,11 +116,22 @@ export function createBook(onClose) {
   function pose(p) {
     if (!turn) return;
     turn.progress = p;
-    const angle = -turn.direction * p * 180;
-    const bend = Math.sin(p * Math.PI) * turn.direction * 2;
-    turn.leaf.style.transform = `rotateY(${angle}deg) skewY(${bend}deg)`;
-    turn.leaf.style.setProperty('--fold-shadow', String(Math.sin(p * Math.PI) * .32));
-    turn.still.style.opacity = p < .5 ? '1' : '0';
+    const direction = turn.direction;
+    const step = turn.width / turn.slices.length;
+    const curl = Math.sin(p * Math.PI) * .85;
+    let x = 0;
+    let z = 0;
+    turn.slices.forEach((slice, i) => {
+      const u = (i + .5) / turn.slices.length;
+      const angle = -direction * p * Math.PI + direction * curl * (u - .2);
+      const leftEdge = direction > 0 ? x : turn.width - x - step;
+      slice.style.transform = `translate3d(${leftEdge}px,0,${z}px) rotateY(${angle * 180 / Math.PI}deg)`;
+      slice.style.setProperty('--fold-shadow', String(Math.min(.32, Math.abs(Math.sin(angle)) * .16 + curl * u * .12)));
+      x += Math.cos(angle) * step;
+      z -= direction * Math.sin(angle) * step;
+    });
+    // Never reveal the incoming illustration underneath the old illustration.
+    turn.still.style.opacity = '1';
   }
 
   async function settle(commit) {
@@ -116,7 +159,7 @@ export function createBook(onClose) {
     }
     current.leaf.remove();
     current.still.remove();
-    if (!commit) index = current.oldIndex;
+    index = commit ? current.target : current.oldIndex;
     turn = null;
     dots.inert = false;
     render();
