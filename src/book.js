@@ -33,11 +33,34 @@ export function createBook(onExit) {
   const next = root.querySelector('[data-book-next]');
   const progress = root.querySelector('.book-progress');
   const dots = root.querySelector('.book-chapters');
+  const stage = root.querySelector('.book-stage');
+  const decodedImages = new Map();
+  let cameraSide = 0;
+  function pan(side, smooth = true) {
+    cameraSide = side;
+    stage.scrollTo({ left: side * book.clientWidth / 2, behavior: smooth && !reducedMotion.matches ? 'smooth' : 'instant' });
+    updateNavigation();
+  }
+  function updateNavigation() {
+    previous.disabled = !!turn || (index === 0 && (!compactLayout.matches || cameraSide === 0));
+    next.disabled = !!turn || (index === chapters.length - 1 && (!compactLayout.matches || cameraSide === 1));
+    previous.querySelector('.nav-caption').textContent = compactLayout.matches && cameraSide === 1 ? 'Иллюстрация' : 'Предыдущая глава';
+    next.querySelector('.nav-caption').textContent = compactLayout.matches && cameraSide === 0 ? 'Читать' : 'Следующая глава';
+  }
+  function navigate(direction) {
+    if (compactLayout.matches && ((direction > 0 && cameraSide === 0) || (direction < 0 && cameraSide === 1))) { pan(direction > 0 ? 1 : 0); return; }
+    flip(direction);
+  }
+  stage.addEventListener('scroll', () => {
+    if (!compactLayout.matches || !isOpen) return;
+    cameraSide = stage.scrollLeft > book.clientWidth / 4 ? 1 : 0;
+    updateNavigation();
+  }, { passive: true });
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
   const compactLayout = matchMedia('(max-width: 1100px)');
   function updateReadingHint() {
     root.querySelector('.book-hint').textContent = compactLayout.matches
-      ? 'Листайте кнопками внизу. Нажимайте на кружки, чтобы открыть воспоминания.'
+      ? 'Свайпните к тексту или нажмите «Читать». Кружки хранят воспоминания.'
       : 'Листайте стрелками ← → или тяните за край листа. Кружки на рисунках хранят воспоминания.';
   }
   compactLayout.addEventListener('change', updateReadingHint);
@@ -64,6 +87,13 @@ export function createBook(onExit) {
     book.style.setProperty('--right-stack', stackShadow(chapters.length - index));
     left.innerHTML = illustration(chapter, index);
     right.innerHTML = reading(chapter, index);
+    const cached = decodedImages.get(index);
+    if (cached) {
+      cached.className = 'story-art';
+      cached.alt = chapter.subtitle;
+      cached.draggable = false;
+      left.querySelector('.story-art').replaceWith(cached);
+    }
     root.dataset.mood = chapter.mood;
     root.dataset.chapter = String(index);
     progress.textContent = `${String(index + 1).padStart(2, '0')} / 08`;
@@ -73,6 +103,7 @@ export function createBook(onExit) {
     next.disabled = index === chapters.length - 1 || !!turn;
     next.querySelector('.nav-caption').textContent = index === 6 ? 'Счастливый конец' : 'Следующая глава';
     dots.innerHTML = chapters.map((chapter, i) => `<button data-chapter="${i}" aria-label="Глава ${i + 1}: ${chapter.title}" ${i === index ? 'aria-current="step"' : ''}><span>${numbers[i]}</span></button>`).join('');
+    updateNavigation();
     root.querySelector('.book-announcement').textContent = `Глава ${index + 1}. ${chapter.title}`;
   }
 
@@ -115,6 +146,8 @@ export function createBook(onExit) {
         const offset = side === 'front' ? i : count - 1 - i;
         const column = direction > 0 ? offset : count - 1 - offset;
         content.style.left = `${-column * width / count}px`;
+        if (column === 0) surface.style.borderRadius = '12px 0 0 12px';
+        if (column === count - 1) surface.style.borderRadius = '0 12px 12px 0';
         surface.append(content);
         slice.append(surface);
       }
@@ -183,7 +216,7 @@ export function createBook(onExit) {
     turn = null;
     dots.inert = false;
     render();
-    if (innerWidth < 1101) root.scrollTo({ top: 0, behavior: 'instant' });
+    if (compactLayout.matches) { pan(current.direction > 0 ? 0 : 1, false); right.scrollTop = 0; }
   }
 
   async function flip(direction) {
@@ -191,12 +224,15 @@ export function createBook(onExit) {
     await settle(true);
   }
 
-  function preload() {
-    return Promise.allSettled(chapters.map((chapter) => {
+  async function preload() {
+    await Promise.all(chapters.map(async (chapter, i) => {
+      if (decodedImages.has(i)) return;
       const img = new Image();
       img.src = `${import.meta.env.BASE_URL}assets/story/${chapter.image}.webp`;
-      return img.decode();
+      await img.decode();
+      decodedImages.set(i, img);
     }));
+    render();
   }
 
   function approach() {
@@ -233,7 +269,9 @@ export function createBook(onExit) {
     cover.getBoundingClientRect();
     await Promise.allSettled(cover.getAnimations().map(animation => animation.finished));
     if (!isOpen || isClosing) return;
+    await left.querySelector('.story-art').decode();
     root.classList.add('reading-ready');
+    if (compactLayout.matches) pan(0, false);
     setPagesInert(false);
   }
 
@@ -268,7 +306,7 @@ export function createBook(onExit) {
   }
 
   left.addEventListener('click', (event) => {
-    if (index === 0 && isOpen && !turn && !event.target.closest('button')) close();
+    if (!compactLayout.matches && index === 0 && isOpen && !turn && !event.target.closest('button')) close();
   });
 
   left.addEventListener('pointerenter', () => book.classList.add('hover-left'));
@@ -276,8 +314,8 @@ export function createBook(onExit) {
   right.addEventListener('pointerenter', () => book.classList.add('hover-right'));
   right.addEventListener('pointerleave', () => book.classList.remove('hover-right'));
 
-  previous.addEventListener('click', () => flip(-1));
-  next.addEventListener('click', () => flip(1));
+  previous.addEventListener('click', () => navigate(-1));
+  next.addEventListener('click', () => navigate(1));
   root.addEventListener('click', (event) => {
     if (event.target.closest('[data-book-open]')) open();
     if (event.target.closest('[data-book-close]')) close();
@@ -313,7 +351,7 @@ export function createBook(onExit) {
       drag.settling = true;
       const movement = (drag.start - event.clientX) * direction;
       const speed = movement / Math.max(performance.now() - drag.time, 1);
-      const commit = turn.progress > .18 || speed > .35 || Math.abs(movement) < 5;
+      const commit = movement >= -8 || speed > .35;
       await settle(commit);
       drag = null;
     });
@@ -336,8 +374,8 @@ export function createBook(onExit) {
       if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
       else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
     }
-    if (event.key === 'ArrowRight') { event.preventDefault(); flip(1); }
-    if (event.key === 'ArrowLeft') { event.preventDefault(); flip(-1); }
+    if (event.key === 'ArrowRight') { event.preventDefault(); navigate(1); }
+    if (event.key === 'ArrowLeft') { event.preventDefault(); navigate(-1); }
     if (event.key === 'Escape') {
       const openedMemory = root.querySelector('.memory-point.open');
       if (openedMemory) openedMemory.classList.remove('open');
