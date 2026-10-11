@@ -60,7 +60,7 @@ export function createBook(onExit) {
   const compactLayout = matchMedia('(max-width: 1100px)');
   function updateReadingHint() {
     root.querySelector('.book-hint').textContent = compactLayout.matches
-      ? 'Свайпните к тексту или нажмите «Читать». Кружки хранят воспоминания.'
+      ? 'Свайп влево — дальше, вправо — назад. Кружки хранят воспоминания.'
       : 'Листайте стрелками ← → или тяните за край листа. Кружки на рисунках хранят воспоминания.';
   }
   compactLayout.addEventListener('change', updateReadingHint);
@@ -70,6 +70,51 @@ export function createBook(onExit) {
   let isOpen = false;
   let isClosing = false;
   let drag = null;
+
+  let swipe = null;
+  let suppressClickUntil = 0;
+  let swipeReadyAt = 0;
+
+  stage.addEventListener('pointerdown', (event) => {
+    if (!compactLayout.matches || !isOpen || isClosing || turn || !event.isPrimary || event.button !== 0) return;
+    if (!root.classList.contains('reading-ready') || performance.now() < swipeReadyAt) return;
+    swipe = { id: event.pointerId, x: event.clientX, y: event.clientY, horizontal: false };
+  });
+  stage.addEventListener('pointermove', (event) => {
+    if (!swipe || swipe.id !== event.pointerId) return;
+    const dx = event.clientX - swipe.x;
+    const dy = event.clientY - swipe.y;
+    if (!swipe.horizontal && Math.abs(dy) > 12 && Math.abs(dy) > Math.abs(dx)) {
+      swipe = null;
+      return;
+    }
+    if (Math.abs(dx) > 12 && Math.abs(dx) > Math.abs(dy) * 1.3) {
+      swipe.horizontal = true;
+      stage.setPointerCapture(event.pointerId);
+      event.preventDefault();
+    }
+  });
+  stage.addEventListener('pointerup', (event) => {
+    if (!swipe || swipe.id !== event.pointerId) return;
+    const gesture = swipe;
+    swipe = null;
+    if (stage.hasPointerCapture(event.pointerId)) stage.releasePointerCapture(event.pointerId);
+    if (!gesture.horizontal) return;
+    suppressClickUntil = performance.now() + 400;
+    const dx = event.clientX - gesture.x;
+    if (Math.abs(dx) < 28 || turn || isClosing) return;
+    swipeReadyAt = performance.now() + 450;
+    navigate(dx < 0 ? 1 : -1);
+  });
+  stage.addEventListener('pointercancel', () => { swipe = null; });
+  stage.addEventListener('lostpointercapture', (event) => {
+    if (event.target === stage) swipe = null;
+  });
+  stage.addEventListener('click', (event) => {
+    if (performance.now() >= suppressClickUntil) return;
+    event.preventDefault();
+    event.stopPropagation();
+  }, true);
 
   function render() {
     const chapter = chapters[index];
