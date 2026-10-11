@@ -241,15 +241,18 @@ export function createBook(onExit) {
   let wheelDistance = 0;
   let wheelLastAt = 0;
   let wheelUsed = false;
+  let wheelDirection = 0;
   stage.addEventListener('wheel', (event) => {
     if (!compactLayout.matches || !isOpen() || event.ctrlKey) return;
     if (Math.abs(event.deltaX) <= Math.abs(event.deltaY)) return;
     event.preventDefault();
     const now = performance.now();
-    if (now - wheelLastAt > 180) { wheelDistance = 0; wheelUsed = false; }
-    wheelLastAt = now;
-    if (wheelUsed) return;
     const distance = event.deltaX * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? stage.clientWidth : 1);
+    const direction = Math.sign(distance);
+    if (now - wheelLastAt > 180 || direction !== wheelDirection) { wheelDistance = 0; wheelUsed = false; }
+    wheelLastAt = now;
+    wheelDirection = direction;
+    if (wheelUsed) return;
     wheelDistance += distance;
     if (Math.abs(wheelDistance) < 28) return;
     wheelUsed = true;
@@ -353,7 +356,7 @@ export function createBook(onExit) {
     const curl = Math.sin(p * Math.PI);
     const angle = -direction * p * 180;
     // One continuous surface avoids independently rasterized strip seams.
-    reader.turn.leaf.style.setProperty('transform', `rotateY(${angle}deg) skewY(${direction * curl * 1.8}deg)`, 'important');
+    reader.turn.leaf.style.setProperty('transform', `rotateY(${angle}deg)`, 'important');
     reader.turn.leaf.style.setProperty('--fold-shadow', String(curl * .16));
     const edge = [];
     for (let i = 0; i <= 12; i++) {
