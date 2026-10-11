@@ -35,7 +35,7 @@ export function createBook(onExit) {
   const dots = root.querySelector('.book-chapters');
   const stage = root.querySelector('.book-stage');
   const decodedImages = new Map();
-  const reader = { phase: 'closed', chapter: 0, side: 0, turn: null, drag: null, gesture: null, memory: null };
+  const reader = { phase: 'closed', chapter: 0, side: 0, turn: null, drag: null, gesture: null, memory: null, destination: null };
   function showMemory(point, pinned = false) {
     if (reader.memory) {
       reader.memory.point.classList.remove('open');
@@ -93,6 +93,7 @@ export function createBook(onExit) {
     reader.side = side;
     stage.scrollTo({ left: destination, behavior: 'instant' });
     transition('idle');
+    continueNavigation();
   }
   function updateNavigation() {
     const busy = reader.phase !== 'idle';
@@ -108,6 +109,24 @@ export function createBook(onExit) {
       return;
     }
     flip(direction);
+  }
+  function readingPosition() {
+    return compactLayout.matches ? reader.chapter * 2 + reader.side : reader.chapter;
+  }
+  function continueNavigation() {
+    if (reader.phase !== 'idle' || reader.gesture || reader.destination === null) return;
+    const position = readingPosition();
+    if (position === reader.destination) {
+      reader.destination = null;
+      return;
+    }
+    navigate(reader.destination > position ? 1 : -1);
+  }
+  function requestNavigation(direction) {
+    if (!['idle', 'panning', 'turning'].includes(reader.phase)) return;
+    const last = compactLayout.matches ? chapters.length * 2 - 1 : chapters.length - 1;
+    reader.destination = Math.max(0, Math.min(last, (reader.destination ?? readingPosition()) + direction));
+    continueNavigation();
   }
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
   const compactLayout = matchMedia('(max-width: 1100px)');
@@ -128,9 +147,10 @@ export function createBook(onExit) {
     return gesture;
   }
   function commitGesture(gesture, distance) {
-    if (!gesture?.horizontal || gesture.pinch) return;
+    if (!gesture?.horizontal || gesture.pinch) { continueNavigation(); return; }
     suppressClickUntil = performance.now() + 400;
-    if (Math.abs(distance) >= 28) navigate(distance < 0 ? 1 : -1);
+    if (Math.abs(distance) >= 28) requestNavigation(distance < 0 ? 1 : -1);
+    else continueNavigation();
   }
 
   stage.addEventListener('pointerdown', (event) => {
@@ -176,9 +196,9 @@ export function createBook(onExit) {
     const points = [...touches];
     return { x: points.reduce((sum, point) => sum + point.clientX, 0) / points.length, y: points.reduce((sum, point) => sum + point.clientY, 0) / points.length, spread: points.length > 1 ? Math.hypot(points[0].clientX - points[1].clientX, points[0].clientY - points[1].clientY) : 0 };
   }
-  stage.addEventListener('touchstart', (event) => {
-    if (!compactLayout.matches || reader.phase === 'closed') return;
-    if (reader.phase !== 'idle' && reader.gesture?.kind !== 'touch') {
+  root.addEventListener('touchstart', (event) => {
+    if (!compactLayout.matches || !stage.contains(event.target) || reader.phase === 'closed') return;
+    if (!['idle', 'gesturing', 'panning', 'turning'].includes(reader.phase)) {
       if (event.cancelable) event.preventDefault();
       return;
     }
@@ -187,7 +207,7 @@ export function createBook(onExit) {
     const point = touchCenter(event.touches);
     reader.gesture = { kind: 'touch', ...point, lastX: point.x, count: event.touches.length, horizontal: false, pinch: false };
   }, { passive: false });
-  stage.addEventListener('touchmove', (event) => {
+  document.addEventListener('touchmove', (event) => {
     const gesture = reader.gesture;
     if (gesture?.kind !== 'touch') return;
     if (gesture.horizontal && event.cancelable) event.preventDefault();
@@ -205,7 +225,7 @@ export function createBook(onExit) {
       event.preventDefault();
     }
   }, { passive: false });
-  stage.addEventListener('touchend', (event) => {
+  document.addEventListener('touchend', (event) => {
     const gesture = reader.gesture;
     if (gesture?.kind !== 'touch') return;
     if (event.changedTouches.length === gesture.count) gesture.lastX = touchCenter(event.changedTouches).x;
@@ -214,8 +234,8 @@ export function createBook(onExit) {
     if (gesture.horizontal && event.cancelable) event.preventDefault();
     commitGesture(gesture, gesture.lastX - gesture.x);
   }, { passive: false });
-  stage.addEventListener('touchcancel', () => {
-    if (reader.gesture?.kind === 'touch') finishGesture();
+  document.addEventListener('touchcancel', () => {
+    if (reader.gesture?.kind === 'touch') { finishGesture(); continueNavigation(); }
   });
 
   let wheelDistance = 0;
@@ -228,12 +248,12 @@ export function createBook(onExit) {
     const now = performance.now();
     if (now - wheelLastAt > 180) { wheelDistance = 0; wheelUsed = false; }
     wheelLastAt = now;
-    if (reader.phase !== 'idle' || wheelUsed) return;
+    if (wheelUsed) return;
     const distance = event.deltaX * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? stage.clientWidth : 1);
     wheelDistance += distance;
     if (Math.abs(wheelDistance) < 28) return;
     wheelUsed = true;
-    navigate(wheelDistance > 0 ? 1 : -1);
+    requestNavigation(wheelDistance > 0 ? 1 : -1);
   }, { passive: false });
 
   function render() {
@@ -395,6 +415,7 @@ export function createBook(onExit) {
     reader.turn = null;
     dots.inert = false;
     transition('idle');
+    continueNavigation();
   }
 
   async function flip(direction) {
@@ -420,6 +441,8 @@ export function createBook(onExit) {
     root.classList.add('book-closed');
     reader.chapter = 0;
     reader.side = 0;
+    reader.destination = null;
+    reader.gesture = null;
     render();
     root.classList.add('book-arriving');
   }
@@ -576,8 +599,8 @@ export function createBook(onExit) {
   right.addEventListener('pointerenter', () => book.classList.add('hover-right'));
   right.addEventListener('pointerleave', () => book.classList.remove('hover-right'));
 
-  previous.addEventListener('click', () => navigate(-1));
-  next.addEventListener('click', () => navigate(1));
+  previous.addEventListener('click', () => requestNavigation(-1));
+  next.addEventListener('click', () => requestNavigation(1));
   root.addEventListener('click', (event) => {
     if (event.target.closest('[data-book-open]')) open();
     if (event.target.closest('[data-book-close]')) close();
@@ -588,6 +611,7 @@ export function createBook(onExit) {
     else showMemory(null);
     const chapter = event.target.closest('.book-chapters [data-chapter]');
     if (chapter && reader.phase === 'idle') {
+      reader.destination = null;
       const target = Number(chapter.dataset.chapter);
       if (Math.abs(target - reader.chapter) === 1) flip(target - reader.chapter);
       else { reader.chapter = target; render(); }
@@ -636,8 +660,8 @@ export function createBook(onExit) {
       if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
       else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
     }
-    if (event.key === 'ArrowRight') { event.preventDefault(); navigate(1); }
-    if (event.key === 'ArrowLeft') { event.preventDefault(); navigate(-1); }
+    if (event.key === 'ArrowRight') { event.preventDefault(); requestNavigation(1); }
+    if (event.key === 'ArrowLeft') { event.preventDefault(); requestNavigation(-1); }
     if (event.key === 'Escape') {
       if (reader.memory) showMemory(null);
       else close();

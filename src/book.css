@@ -321,3 +321,5 @@
 }
 
 .memory-point:focus-visible{outline:none}.memory-point:focus-visible .memory-mark{outline:2px solid #e3c58b;outline-offset:4px}
+
+@media(max-width:1100px){.page-turning .book-stage{pointer-events:auto}}
