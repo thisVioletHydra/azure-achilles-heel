@@ -34,6 +34,14 @@ export function createBook(onExit) {
   const progress = root.querySelector('.book-progress');
   const dots = root.querySelector('.book-chapters');
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+  const compactLayout = matchMedia('(max-width: 1100px)');
+  function updateReadingHint() {
+    root.querySelector('.book-hint').textContent = compactLayout.matches
+      ? 'Листайте кнопками внизу. Нажимайте на кружки, чтобы открыть воспоминания.'
+      : 'Листайте стрелками ← → или тяните за край листа. Кружки на рисунках хранят воспоминания.';
+  }
+  compactLayout.addEventListener('change', updateReadingHint);
+  updateReadingHint();
   let index = 0;
   let turn = null;
   let isOpen = false;
@@ -151,7 +159,7 @@ export function createBook(onExit) {
     const current = turn;
     const from = current.progress;
     const to = commit ? 1 : 0;
-    if (!reducedMotion.matches && innerWidth >= 700) {
+    if (!reducedMotion.matches && innerWidth >= 1101) {
       const start = performance.now();
       const duration = Math.max(220, Math.abs(to - from) * 940);
       await new Promise((resolve) => {
@@ -175,6 +183,7 @@ export function createBook(onExit) {
     turn = null;
     dots.inert = false;
     render();
+    if (innerWidth < 1101) root.scrollTo({ top: 0, behavior: 'instant' });
   }
 
   async function flip(direction) {
