@@ -216,15 +216,25 @@ export function createBook(onExit) {
     const target = index + direction;
     if (turn || !isOpen || isClosing || !root.classList.contains('reading-ready') || target < 0 || target >= chapters.length) return false;
     const oldIndex = index;
+    root.classList.add('page-turning');
+    stage.scrollTo({ left: stage.scrollLeft, behavior: 'instant' });
     const leaf = document.createElement('div');
     leaf.className = `turn-leaf ${direction > 0 ? 'turn-forward' : 'turn-backward'}`;
     const sourcePage = direction > 0 ? right : left;
     const sourceScroll = sourcePage.scrollTop;
+    const sourceStyle = getComputedStyle(sourcePage);
     const face = sourcePage.cloneNode(true);
     face.className = `turn-face turn-front ${direction > 0 ? 'page-reading' : 'page-illustration'}`;
+    face.style.scrollbarWidth = sourceStyle.scrollbarWidth;
+    face.style.scrollbarGutter = sourceStyle.scrollbarGutter;
+    face.style.borderRadius = sourceStyle.borderRadius;
 
     const back = document.createElement('div');
     back.className = `turn-face turn-back ${direction > 0 ? 'page-illustration' : 'page-reading'}`;
+    const backStyle = getComputedStyle(direction > 0 ? left : right);
+    back.style.borderRadius = backStyle.borderRadius;
+    back.style.scrollbarWidth = backStyle.scrollbarWidth;
+    back.style.scrollbarGutter = backStyle.scrollbarGutter;
     back.innerHTML = direction > 0 ? illustration(chapters[target], target) : reading(chapters[target], target);
     leaf.append(face, back);
     removeCloneIds(leaf);
@@ -232,7 +242,7 @@ export function createBook(onExit) {
     const still = stillPage.cloneNode(true);
     still.classList.add('turn-still');
     removeCloneIds(still);
-    turn = { leaf, still, direction, oldIndex, target, progress: 0, cameraStart: stage.scrollLeft };
+    turn = { leaf, still, direction, oldIndex, target, progress: 0, cameraStart: stage.scrollLeft, readingScroll: right.scrollTop };
     // The old opposite page remains in place until the turned sheet lands.
     if (direction > 0) right.innerHTML = reading(chapters[target], target);
     else left.innerHTML = illustration(chapters[target], target);
@@ -247,7 +257,6 @@ export function createBook(onExit) {
     book.append(still, leaf);
     still.scrollTop = stillPage.scrollTop;
     face.scrollTop = sourceScroll;
-    root.classList.add('page-turning');
     pose(0);
     dots.inert = true;
     return true;
@@ -306,16 +315,22 @@ export function createBook(onExit) {
       current.still.style.display = 'none';
       await right.animate([{ opacity: .3 }, { opacity: 1 }], { duration: reducedMotion.matches ? 120 : 350 }).finished;
     }
-    root.classList.remove('page-turning');
+    index = commit ? current.target : current.oldIndex;
+    render();
+    right.scrollTop = commit ? 0 : current.readingScroll;
+    if (compactLayout.matches) {
+      const destination = commit ? (current.direction > 0 ? 0 : current.width) : current.cameraStart;
+      stage.scrollTo({ left: destination, behavior: 'instant' });
+      cameraSide = destination > current.width / 2 ? 1 : 0;
+    }
+    await left.querySelector('.story-art').decode();
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     current.leaf.remove();
     current.still.remove();
-    index = commit ? current.target : current.oldIndex;
+    root.classList.remove('page-turning');
     turn = null;
-    if (compactLayout.matches) cameraSide = current.direction > 0 ? 0 : 1;
     dots.inert = false;
-    render();
-    right.scrollTop = 0;
-    if (compactLayout.matches) pan(current.direction > 0 ? 0 : 1, false);
+    updateNavigation();
   }
 
   async function flip(direction) {

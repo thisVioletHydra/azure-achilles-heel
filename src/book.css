@@ -263,6 +263,7 @@
 .turn-leaf>.turn-back{backface-visibility:hidden;transform:rotateY(180deg);z-index:1}
 .turn-leaf>.turn-face{overflow:hidden;border-radius:12px;}
 .turn-leaf:after{content:'';position:absolute;inset:0;pointer-events:none;border-radius:12px;box-shadow:inset -12px 0 22px #49392512}
+.turn-leaf:after{opacity:calc(var(--fold-shadow,0)*6)}
 .cover-binding{display:none}
 .book-cover:before{display:block;width:13px;border-radius:8px 0 0 8px;box-shadow:2px 0 3px #051b2840}
 .book-cover:after{content:'';position:absolute;left:-1px;bottom:-11px;width:14px;height:16px;border-radius:0 0 8px 8px;background:linear-gradient(90deg,#173641,#466b75 45%,#203f4b);box-shadow:inset 0 -2px 2px #112b35;pointer-events:none}
@@ -288,6 +289,7 @@
 .binding-paper-edge{position:absolute;border-bottom:4px solid #203e49;border-radius:0 0 10px 8px;box-shadow:0 5px 10px #142b3340;background:repeating-linear-gradient(0deg,#c9b99b 0 1px,#eee4cf 1px 3px)}
 .book-home{font-family:Manrope,sans-serif;font-size:10px;color:inherit;padding:12px;min-height:44px}
 .book>.page-reading{overflow-y:auto;overscroll-behavior-y:contain;scrollbar-width:thin;scrollbar-color:#b9a78a transparent}
+.page-reading{scrollbar-gutter:stable}
 .page-reading>.page-number{position:static;display:block;text-align:center;padding-top:12px}
 .memory-point.memory-below .memory-tooltip{top:38px;bottom:auto}
 .memory-point.open .memory-tooltip,.memory-point:hover .memory-tooltip,.memory-point:focus-visible .memory-tooltip{pointer-events:auto;max-height:min(320px,45dvh);overflow-y:auto;overscroll-behavior:contain;white-space:pre-line}
@@ -298,10 +300,11 @@
  #storybook{overscroll-behavior-x:none;padding-bottom:calc(env(safe-area-inset-bottom) + 16px)}
  .book-open{--page-height:calc(100dvh - 185px - env(safe-area-inset-top) - env(safe-area-inset-bottom))}
  .book-header{padding-top:calc(12px + env(safe-area-inset-top))}
- .book-open .book-stage{overscroll-behavior-x:none}
+ .book-open .book-stage{overscroll-behavior-x:none;scroll-padding-inline:12px}
  .book-open .chapter-text,.binding-scene .chapter-text{font-size:14px;line-height:1.55}
  .book-open .chapter-copy h2,.binding-scene .chapter-copy h2{font-size:30px}
  .book-open .chapter-copy,.binding-scene .chapter-copy{padding-top:10px}
+ .book-open .turn-face .chapter-copy{padding:10px 0 10px}
  .book-open .chapter-copy blockquote,.binding-scene .chapter-copy blockquote{font-size:12px;margin-top:12px}
  .book-open .chapter-text p,.binding-scene .chapter-text p{margin-bottom:10px}
  .book-open .book-hint{margin-bottom:calc(12px + env(safe-area-inset-bottom))}
