@@ -135,7 +135,7 @@ export function createBook(onExit) {
     const point = touchCenter(event.touches);
     const dx = point.x - touchGesture.x;
     const dy = point.y - touchGesture.y;
-    if (Math.abs(point.spread - touchGesture.spread) > 20) { touchGesture.pinch = true; return; }
+    if (!touchGesture.horizontal && Math.abs(point.spread - touchGesture.spread) > 45 && Math.abs(dx) < 18) { touchGesture.pinch = true; return; }
     touchGesture.lastX = point.x;
     if (Math.abs(dx) > 12 && Math.abs(dx) > Math.abs(dy) * 1.3) {
       touchGesture.horizontal = true;
@@ -145,6 +145,7 @@ export function createBook(onExit) {
   stage.addEventListener('touchend', (event) => {
     if (!touchGesture) return;
     const gesture = touchGesture;
+    if (event.changedTouches.length === gesture.count) gesture.lastX = touchCenter(event.changedTouches).x;
     touchGesture = null;
     if (!gesture.horizontal || gesture.pinch || turn || isClosing) return;
     event.preventDefault();
@@ -162,12 +163,12 @@ export function createBook(onExit) {
     if (Math.abs(event.deltaX) <= Math.abs(event.deltaY)) return;
     event.preventDefault();
     const now = performance.now();
-    if (now - wheelLastAt > 180) { wheelDistance = 0; wheelUsed = false; }
+    if (now - wheelLastAt > 90) { wheelDistance = 0; wheelUsed = false; }
     wheelLastAt = now;
     if (turn || wheelUsed) return;
     const distance = event.deltaX * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? stage.clientWidth : 1);
     wheelDistance += distance;
-    if (Math.abs(wheelDistance) < 45) return;
+    if (Math.abs(wheelDistance) < 28) return;
     wheelUsed = true;
     navigate(wheelDistance > 0 ? 1 : -1);
   }, { passive: false });
@@ -351,28 +352,36 @@ export function createBook(onExit) {
   }
 
   async function animateCompactCover(opening) {
-    const cover = root.querySelector('.book-cover');
-    const ghost = cover.cloneNode(true);
-    ghost.className = 'cover-transition book-cover';
-    ghost.removeAttribute('data-book-open');
-    ghost.inert = true;
-    ghost.setAttribute('aria-hidden', 'true');
     const rect = closedCoverRect;
-    Object.assign(ghost.style, { position: 'fixed', left: `${rect.left}px`, top: `${rect.top}px`, width: `${rect.width}px`, height: `${rect.height}px`, minHeight: '0', zIndex: '25', visibility: 'visible', transformOrigin: 'left center', transition: 'none' });
+    const pageWidth = book.clientWidth / 2;
+    const pageHeight = book.clientHeight;
+    const target = book.getBoundingClientRect();
+    const scene = document.createElement('div');
+    scene.className = 'binding-scene';
+    scene.inert = true;
+    scene.setAttribute('aria-hidden', 'true');
+    Object.assign(scene.style, { left: `${rect.left - pageWidth}px`, top: `${rect.top}px`, width: `${pageWidth * 2}px`, height: `${pageHeight}px`, transformOrigin: `${pageWidth}px 0` });
+    const leftBoard = left.cloneNode(true);
+    const rightBoard = right.cloneNode(true);
+    const cover = root.querySelector('.book-cover').cloneNode(true);
+    leftBoard.className = 'binding-left paper-page page-illustration';
+    rightBoard.className = 'binding-right paper-page page-reading';
+    cover.className = 'binding-cover book-cover';
+    cover.removeAttribute('data-book-open');
+    scene.append(leftBoard, rightBoard, cover);
+    removeCloneIds(scene);
     root.classList.add('cover-flight');
-    root.append(ghost);
-    const frames = [
-      { transform: 'perspective(1500px) rotateY(0deg)', opacity: 1, offset: 0 },
-      { transform: 'perspective(1500px) rotateY(-95deg)', opacity: 1, offset: .65 },
-      { transform: 'perspective(1500px) rotateY(-150deg)', opacity: 0, offset: 1 },
-    ];
-    const options = { duration: 1300, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'both' };
-    const zoom = [{ transform: 'translateY(45px) scale(.78)', opacity: .35 }, { transform: 'translateY(0) scale(1)', opacity: 1 }];
+    root.append(scene);
+    rightBoard.scrollTop = right.scrollTop;
+    const small = `scale(${rect.width / pageWidth},${rect.height / pageHeight})`;
+    const full = `translate(${target.left - (rect.left - pageWidth)}px,${target.top - rect.top}px) scale(1)`;
+    const options = { duration: 1600, easing: 'linear', fill: 'both', direction: opening ? 'normal' : 'reverse' };
     await Promise.all([
-      ghost.animate(opening ? frames : [{transform:'perspective(1500px) rotateY(-85deg)',opacity:1},{transform:'perspective(1500px) rotateY(0deg)',opacity:1}], options).finished,
-      stage.animate(zoom, { ...options, direction: opening ? 'normal' : 'reverse', fill: 'none' }).finished,
+      cover.animate([{transform:'rotateY(0deg)',offset:0},{transform:'rotateY(-150deg)',offset:.55},{transform:'rotateY(-180deg)',offset:.8},{transform:'rotateY(-180deg)',offset:1}], options).finished,
+      leftBoard.animate([{transform:'rotateY(180deg)',offset:0},{transform:'rotateY(15deg)',offset:.65},{transform:'rotateY(0deg)',offset:.9},{transform:'rotateY(0deg)',offset:1}], options).finished,
+      scene.animate([{transform:small,offset:0},{transform:small,offset:.35,easing:'ease-in-out'},{transform:full,offset:1}], options).finished,
     ]);
-    ghost.remove();
+    scene.remove();
     root.classList.remove('cover-flight');
   }
 
