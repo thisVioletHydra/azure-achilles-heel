@@ -370,19 +370,28 @@ export function createBook(onExit) {
     cover.removeAttribute('data-book-open');
     scene.append(leftBoard, rightBoard, cover);
     removeCloneIds(scene);
+    const small = `scale(${rect.width / pageWidth},${rect.height / pageHeight})`;
+    const full = `translate(${target.left - (rect.left - pageWidth)}px,${target.top - rect.top}px) scale(1)`;
+    scene.style.transform = opening ? small : full;
+    leftBoard.style.transform = opening ? 'rotateY(180deg)' : 'rotateY(0deg)';
+    cover.style.transform = opening ? 'rotateY(0deg)' : 'rotateY(-180deg)';
+    if (!opening) await Promise.all([...scene.querySelectorAll('img')].map(image => image.decode()));
     root.classList.add('cover-flight');
     root.append(scene);
     rightBoard.scrollTop = right.scrollTop;
-    const small = `scale(${rect.width / pageWidth},${rect.height / pageHeight})`;
-    const full = `translate(${target.left - (rect.left - pageWidth)}px,${target.top - rect.top}px) scale(1)`;
+    if (opening) await Promise.all([...scene.querySelectorAll('img')].map(image => image.decode()));
     const options = { duration: 1600, easing: 'linear', fill: 'both', direction: opening ? 'normal' : 'reverse' };
     await Promise.all([
       cover.animate([{transform:'rotateY(0deg)',offset:0},{transform:'rotateY(-150deg)',offset:.55},{transform:'rotateY(-180deg)',offset:.8},{transform:'rotateY(-180deg)',offset:1}], options).finished,
       leftBoard.animate([{transform:'rotateY(180deg)',offset:0},{transform:'rotateY(15deg)',offset:.65},{transform:'rotateY(0deg)',offset:.9},{transform:'rotateY(0deg)',offset:1}], options).finished,
       scene.animate([{transform:small,offset:0},{transform:small,offset:.35,easing:'ease-in-out'},{transform:full,offset:1}], options).finished,
     ]);
-    scene.remove();
-    root.classList.remove('cover-flight');
+    // Keep the last animation frame until the real book has painted its new state.
+    return async () => {
+      root.classList.remove('cover-flight');
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      scene.remove();
+    };
   }
 
   async function open() {
@@ -399,22 +408,23 @@ export function createBook(onExit) {
     if (compactLayout.matches) { root.classList.add('artwork-ready'); pan(savedCameraSide, false); }
     root.querySelector('.book-close').focus({ preventScroll: true });
     cover.getBoundingClientRect();
-    if (compactLayout.matches && !reducedMotion.matches) await animateCompactCover(true);
+    const finishCover = compactLayout.matches && !reducedMotion.matches ? await animateCompactCover(true) : null;
     await Promise.allSettled(cover.getAnimations().map(animation => animation.finished));
     if (!isOpen || isClosing) return;
     await left.querySelector('.story-art').decode();
     root.classList.add('reading-ready');
     if (compactLayout.matches) pan(savedCameraSide, false);
     setPagesInert(false);
+    if (finishCover) await finishCover();
   }
 
   async function close() {
-    if (!isOpen || turn || isClosing) return;
+    if (!isOpen || turn || isClosing || root.classList.contains('cover-flight')) return;
     isClosing = true;
     root.inert = true;
     savedCameraSide = cameraSide;
     root.querySelectorAll('.memory-point.open').forEach(point => point.classList.remove('open'));
-    if (compactLayout.matches && !reducedMotion.matches) await animateCompactCover(false);
+    const finishCover = compactLayout.matches && !reducedMotion.matches ? await animateCompactCover(false) : null;
     root.classList.add('book-closing');
     root.classList.remove('book-open', 'reading-ready', 'artwork-ready');
     if (!reducedMotion.matches) {
@@ -425,6 +435,7 @@ export function createBook(onExit) {
     root.classList.remove('book-closing');
     root.classList.add('book-closed');
     setPagesInert(true);
+    if (finishCover) await finishCover();
     isClosing = false;
     root.querySelector('.book-cover').focus({ preventScroll: true });
   }
