@@ -35,31 +35,68 @@ export function createBook(onExit) {
   const dots = root.querySelector('.book-chapters');
   const stage = root.querySelector('.book-stage');
   const decodedImages = new Map();
-  let cameraSide = 0;
-  let savedCameraSide = 0;
+  const reader = { phase: 'closed', chapter: 0, side: 0, turn: null, drag: null, gesture: null };
+  const transitions = {
+    closed: ['opening'],
+    opening: ['idle'],
+    idle: ['gesturing', 'panning', 'turning', 'closing'],
+    gesturing: ['idle'],
+    panning: ['idle'],
+    turning: ['idle'],
+    closing: ['closed'],
+  };
+  function transition(phase) {
+    if (!transitions[reader.phase].includes(phase)) return false;
+    reader.phase = phase;
+    root.dataset.readerState = phase;
+    updateNavigation();
+    return true;
+  }
+  function isOpen() {
+    return reader.phase !== 'closed' && reader.phase !== 'closing';
+  }
   let closedCoverRect = null;
   let closedCoverFrame = null;
-  function pan(side, smooth = true) {
-    cameraSide = side;
-    stage.scrollTo({ left: side * book.clientWidth / 2, behavior: smooth && !reducedMotion.matches ? 'smooth' : 'instant' });
-    updateNavigation();
+  async function pan(side, smooth = true) {
+    const destination = side * book.clientWidth / 2;
+    if (!smooth || reducedMotion.matches) {
+      reader.side = side;
+      stage.scrollTo({ left: destination, behavior: 'instant' });
+      updateNavigation();
+      return;
+    }
+    if (!transition('panning')) return;
+    const origin = stage.scrollLeft;
+    const startedAt = performance.now();
+    await new Promise(resolve => {
+      function tick(now) {
+        const progress = Math.min((now - startedAt) / 420, 1);
+        const eased = progress * progress * (3 - 2 * progress);
+        stage.scrollTo({ left: origin + (destination - origin) * eased, behavior: 'instant' });
+        if (progress < 1) requestAnimationFrame(tick);
+        else resolve();
+      }
+      requestAnimationFrame(tick);
+    });
+    reader.side = side;
+    stage.scrollTo({ left: destination, behavior: 'instant' });
+    transition('idle');
   }
   function updateNavigation() {
-    previous.disabled = !!turn || (index === 0 && (!compactLayout.matches || cameraSide === 0));
-    next.disabled = !!turn || (index === chapters.length - 1 && (!compactLayout.matches || cameraSide === 1));
+    const busy = reader.phase !== 'idle';
+    previous.disabled = busy || (reader.chapter === 0 && (!compactLayout.matches || reader.side === 0));
+    next.disabled = busy || (reader.chapter === chapters.length - 1 && (!compactLayout.matches || reader.side === 1));
     previous.querySelector('.nav-caption').textContent = compactLayout.matches ? 'Назад' : 'Предыдущая глава';
     next.querySelector('.nav-caption').textContent = compactLayout.matches ? 'Дальше' : 'Следующая глава';
   }
   function navigate(direction) {
-    if (turn || isClosing || !root.classList.contains('reading-ready')) return;
-    if (compactLayout.matches && ((direction > 0 && cameraSide === 0) || (direction < 0 && cameraSide === 1))) { pan(direction > 0 ? 1 : 0); return; }
+    if (reader.phase !== 'idle') return;
+    if (compactLayout.matches && ((direction > 0 && reader.side === 0) || (direction < 0 && reader.side === 1))) {
+      pan(direction > 0 ? 1 : 0);
+      return;
+    }
     flip(direction);
   }
-  stage.addEventListener('scroll', () => {
-    if (!compactLayout.matches || !isOpen || turn) return;
-    cameraSide = stage.scrollLeft > book.clientWidth / 4 ? 1 : 0;
-    updateNavigation();
-  }, { passive: true });
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
   const compactLayout = matchMedia('(max-width: 1100px)');
   function updateReadingHint() {
@@ -69,52 +106,53 @@ export function createBook(onExit) {
   }
   compactLayout.addEventListener('change', updateReadingHint);
   updateReadingHint();
-  let index = 0;
-  let turn = null;
-  let isOpen = false;
-  let isClosing = false;
-  let drag = null;
 
-  let swipe = null;
   let suppressClickUntil = 0;
-  let swipeReadyAt = 0;
+
+  function finishGesture() {
+    const gesture = reader.gesture;
+    reader.gesture = null;
+    if (reader.phase === 'gesturing') transition('idle');
+    return gesture;
+  }
+  function commitGesture(gesture, distance) {
+    if (!gesture?.horizontal || gesture.pinch) return;
+    suppressClickUntil = performance.now() + 400;
+    if (Math.abs(distance) >= 28) navigate(distance < 0 ? 1 : -1);
+  }
 
   stage.addEventListener('pointerdown', (event) => {
     if (event.pointerType === 'touch') return;
     if (event.target.closest('.page-reading, .page-running, .illustration-caption, .page-number, button, a')) return;
-    if (!compactLayout.matches || !isOpen || isClosing || turn || !event.isPrimary || event.button !== 0) return;
-    if (!root.classList.contains('reading-ready') || performance.now() < swipeReadyAt) return;
-    swipe = { id: event.pointerId, x: event.clientX, y: event.clientY, horizontal: false };
+    if (!compactLayout.matches || !event.isPrimary || event.button !== 0 || !transition('gesturing')) return;
+    reader.gesture = { kind: 'pointer', id: event.pointerId, x: event.clientX, y: event.clientY, horizontal: false };
   });
   stage.addEventListener('pointermove', (event) => {
-    if (!swipe || swipe.id !== event.pointerId) return;
-    const dx = event.clientX - swipe.x;
-    const dy = event.clientY - swipe.y;
-    if (!swipe.horizontal && Math.abs(dy) > 12 && Math.abs(dy) > Math.abs(dx)) {
-      swipe = null;
+    const gesture = reader.gesture;
+    if (gesture?.kind !== 'pointer' || gesture.id !== event.pointerId) return;
+    const dx = event.clientX - gesture.x;
+    const dy = event.clientY - gesture.y;
+    if (!gesture.horizontal && Math.abs(dy) > 12 && Math.abs(dy) > Math.abs(dx)) {
+      finishGesture();
       return;
     }
     if (Math.abs(dx) > 12 && Math.abs(dx) > Math.abs(dy) * 1.3) {
-      swipe.horizontal = true;
+      gesture.horizontal = true;
       stage.setPointerCapture(event.pointerId);
       event.preventDefault();
     }
   });
   stage.addEventListener('pointerup', (event) => {
-    if (!swipe || swipe.id !== event.pointerId) return;
-    const gesture = swipe;
-    swipe = null;
+    if (reader.gesture?.kind !== 'pointer' || reader.gesture.id !== event.pointerId) return;
+    const gesture = finishGesture();
     if (stage.hasPointerCapture(event.pointerId)) stage.releasePointerCapture(event.pointerId);
-    if (!gesture.horizontal) return;
-    suppressClickUntil = performance.now() + 400;
-    const dx = event.clientX - gesture.x;
-    if (Math.abs(dx) < 28 || turn || isClosing) return;
-    swipeReadyAt = performance.now() + 450;
-    navigate(dx < 0 ? 1 : -1);
+    commitGesture(gesture, event.clientX - gesture.x);
   });
-  stage.addEventListener('pointercancel', () => { swipe = null; });
+  stage.addEventListener('pointercancel', () => {
+    if (reader.gesture?.kind === 'pointer') finishGesture();
+  });
   stage.addEventListener('lostpointercapture', (event) => {
-    if (event.target === stage) swipe = null;
+    if (event.target === stage && reader.gesture?.kind === 'pointer') finishGesture();
   });
   stage.addEventListener('click', (event) => {
     if (performance.now() >= suppressClickUntil) return;
@@ -122,57 +160,63 @@ export function createBook(onExit) {
     event.stopPropagation();
   }, true);
 
-  let touchGesture = null;
   function touchCenter(touches) {
     const points = [...touches];
     return { x: points.reduce((sum, point) => sum + point.clientX, 0) / points.length, y: points.reduce((sum, point) => sum + point.clientY, 0) / points.length, spread: points.length > 1 ? Math.hypot(points[0].clientX - points[1].clientX, points[0].clientY - points[1].clientY) : 0 };
   }
   stage.addEventListener('touchstart', (event) => {
-    if (!compactLayout.matches || !isOpen || isClosing || turn || !root.classList.contains('reading-ready')) return;
+    if (!compactLayout.matches || reader.phase === 'closed') return;
+    if (reader.phase !== 'idle' && reader.gesture?.kind !== 'touch') {
+      if (event.cancelable) event.preventDefault();
+      return;
+    }
+    if (reader.phase === 'idle' && !transition('gesturing')) return;
     if (event.touches.length > 1 || event.touches[0].clientX < 24 || event.touches[0].clientX > innerWidth - 24) event.preventDefault();
     const point = touchCenter(event.touches);
-    touchGesture = { ...point, lastX: point.x, count: event.touches.length, cameraSide, horizontal: false, pinch: false };
+    reader.gesture = { kind: 'touch', ...point, lastX: point.x, count: event.touches.length, horizontal: false, pinch: false };
   }, { passive: false });
   stage.addEventListener('touchmove', (event) => {
-    if (!touchGesture || event.touches.length !== touchGesture.count) return;
+    const gesture = reader.gesture;
+    if (gesture?.kind !== 'touch') return;
+    if (gesture.horizontal && event.cancelable) event.preventDefault();
+    if (event.touches.length !== gesture.count) return;
     const point = touchCenter(event.touches);
-    const dx = point.x - touchGesture.x;
-    const dy = point.y - touchGesture.y;
-    if (!touchGesture.horizontal && Math.abs(point.spread - touchGesture.spread) > 45 && Math.abs(dx) < 18) { touchGesture.pinch = true; return; }
-    touchGesture.lastX = point.x;
+    const dx = point.x - gesture.x;
+    const dy = point.y - gesture.y;
+    if (!gesture.horizontal && Math.abs(point.spread - gesture.spread) > 45 && Math.abs(dx) < 18) {
+      gesture.pinch = true;
+      return;
+    }
+    gesture.lastX = point.x;
     if (Math.abs(dx) > 12 && Math.abs(dx) > Math.abs(dy) * 1.3) {
-      touchGesture.horizontal = true;
+      gesture.horizontal = true;
       event.preventDefault();
     }
   }, { passive: false });
   stage.addEventListener('touchend', (event) => {
-    if (!touchGesture) return;
-    const gesture = touchGesture;
+    const gesture = reader.gesture;
+    if (gesture?.kind !== 'touch') return;
     if (event.changedTouches.length === gesture.count) gesture.lastX = touchCenter(event.changedTouches).x;
     if (event.touches.length > 0) return;
-    touchGesture = null;
-    if (!gesture.horizontal || gesture.pinch || turn || isClosing) return;
-    event.preventDefault();
-    suppressClickUntil = performance.now() + 400;
-    const dx = gesture.lastX - gesture.x;
-    if (Math.abs(dx) >= 28) {
-      cameraSide = gesture.cameraSide;
-      navigate(dx < 0 ? 1 : -1);
-    }
+    finishGesture();
+    if (gesture.horizontal && event.cancelable) event.preventDefault();
+    commitGesture(gesture, gesture.lastX - gesture.x);
   }, { passive: false });
-  stage.addEventListener('touchcancel', () => { touchGesture = null; });
+  stage.addEventListener('touchcancel', () => {
+    if (reader.gesture?.kind === 'touch') finishGesture();
+  });
 
   let wheelDistance = 0;
   let wheelLastAt = 0;
   let wheelUsed = false;
   stage.addEventListener('wheel', (event) => {
-    if (!compactLayout.matches || !isOpen || isClosing || event.ctrlKey) return;
+    if (!compactLayout.matches || !isOpen() || event.ctrlKey) return;
     if (Math.abs(event.deltaX) <= Math.abs(event.deltaY)) return;
     event.preventDefault();
     const now = performance.now();
-    if (now - wheelLastAt > 90) { wheelDistance = 0; wheelUsed = false; }
+    if (now - wheelLastAt > 180) { wheelDistance = 0; wheelUsed = false; }
     wheelLastAt = now;
-    if (turn || wheelUsed) return;
+    if (reader.phase !== 'idle' || wheelUsed) return;
     const distance = event.deltaX * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? stage.clientWidth : 1);
     wheelDistance += distance;
     if (Math.abs(wheelDistance) < 28) return;
@@ -181,7 +225,7 @@ export function createBook(onExit) {
   }, { passive: false });
 
   function render() {
-    const chapter = chapters[index];
+    const chapter = chapters[reader.chapter];
     // Each chapter transfers one sheet from the right block to the left board.
     function stackShadow(sheets) {
       const layers = [];
@@ -192,11 +236,11 @@ export function createBook(onExit) {
       layers.push(`0 ${sheets * 2 + 5}px 0 #183640`);
       return layers.join(',');
     }
-    book.style.setProperty('--left-stack', stackShadow(index));
-    book.style.setProperty('--right-stack', stackShadow(chapters.length - index));
-    left.innerHTML = illustration(chapter, index);
-    right.innerHTML = reading(chapter, index);
-    const cached = decodedImages.get(index);
+    book.style.setProperty('--left-stack', stackShadow(reader.chapter));
+    book.style.setProperty('--right-stack', stackShadow(chapters.length - reader.chapter));
+    left.innerHTML = illustration(chapter, reader.chapter);
+    right.innerHTML = reading(chapter, reader.chapter);
+    const cached = decodedImages.get(reader.chapter);
     if (cached) {
       cached.className = 'story-art';
       cached.alt = chapter.subtitle;
@@ -204,22 +248,20 @@ export function createBook(onExit) {
       left.querySelector('.story-art').replaceWith(cached);
     }
     root.dataset.mood = chapter.mood;
-    root.dataset.chapter = String(index);
-    progress.textContent = `${String(index + 1).padStart(2, '0')} / 08`;
-    root.querySelector('.grip-left').setAttribute('aria-disabled', String(index === 0));
-    root.querySelector('.grip-right').setAttribute('aria-disabled', String(index === chapters.length - 1));
-    previous.disabled = index === 0 || !!turn;
-    next.disabled = index === chapters.length - 1 || !!turn;
-    next.querySelector('.nav-caption').textContent = index === 6 ? 'Счастливый конец' : 'Следующая глава';
-    dots.innerHTML = chapters.map((chapter, i) => `<button data-chapter="${i}" aria-label="Глава ${i + 1}: ${chapter.title}" ${i === index ? 'aria-current="step"' : ''}><span>${numbers[i]}</span></button>`).join('');
+    root.dataset.chapter = String(reader.chapter);
+    progress.textContent = `${String(reader.chapter + 1).padStart(2, '0')} / 08`;
+    root.querySelector('.grip-left').setAttribute('aria-disabled', String(reader.chapter === 0));
+    root.querySelector('.grip-right').setAttribute('aria-disabled', String(reader.chapter === chapters.length - 1));
+    dots.innerHTML = chapters.map((chapter, i) => `<button data-chapter="${i}" aria-label="Глава ${i + 1}: ${chapter.title}" ${i === reader.chapter ? 'aria-current="step"' : ''}><span>${numbers[i]}</span></button>`).join('');
     updateNavigation();
-    root.querySelector('.book-announcement').textContent = `Глава ${index + 1}. ${chapter.title}`;
+    root.querySelector('.book-announcement').textContent = `Глава ${reader.chapter + 1}. ${chapter.title}`;
   }
 
   function createTurn(direction) {
-    const target = index + direction;
-    if (turn || !isOpen || isClosing || !root.classList.contains('reading-ready') || target < 0 || target >= chapters.length) return false;
-    const oldIndex = index;
+    const target = reader.chapter + direction;
+    if (reader.phase !== 'idle' || target < 0 || target >= chapters.length) return false;
+    transition('turning');
+    const oldIndex = reader.chapter;
     root.classList.add('page-turning');
     stage.scrollTo({ left: stage.scrollLeft, behavior: 'instant' });
     const leaf = document.createElement('div');
@@ -246,7 +288,7 @@ export function createBook(onExit) {
     const still = stillPage.cloneNode(true);
     still.classList.add('turn-still');
     removeCloneIds(still);
-    turn = { leaf, still, direction, oldIndex, target, progress: 0, cameraStart: stage.scrollLeft, readingScroll: right.scrollTop };
+    reader.turn = { leaf, still, direction, oldIndex, target, progress: 0, cameraStart: stage.scrollLeft, readingScroll: right.scrollTop };
     // The old opposite page remains in place until the turned sheet lands.
     if (direction > 0) {
       right.innerHTML = reading(chapters[target], target);
@@ -258,9 +300,9 @@ export function createBook(onExit) {
     const height = book.clientHeight;
     face.style.width = back.style.width = `${width}px`;
     face.style.height = back.style.height = `${height}px`;
-    turn.width = width;
-    turn.face = face;
-    turn.sourceScroll = sourceScroll;
+    reader.turn.width = width;
+    reader.turn.face = face;
+    reader.turn.sourceScroll = sourceScroll;
     previous.disabled = next.disabled = true;
     book.append(still, leaf);
     still.scrollTop = stillPage.scrollTop;
@@ -271,14 +313,14 @@ export function createBook(onExit) {
   }
 
   function pose(p) {
-    if (!turn) return;
-    turn.progress = p;
-    const direction = turn.direction;
+    if (!reader.turn) return;
+    reader.turn.progress = p;
+    const direction = reader.turn.direction;
     const curl = Math.sin(p * Math.PI);
     const angle = -direction * p * 180;
     // One continuous surface avoids independently rasterized strip seams.
-    turn.leaf.style.setProperty('transform', `rotateY(${angle}deg) skewY(${direction * curl * 1.8}deg)`, 'important');
-    turn.leaf.style.setProperty('--fold-shadow', String(curl * .16));
+    reader.turn.leaf.style.setProperty('transform', `rotateY(${angle}deg) skewY(${direction * curl * 1.8}deg)`, 'important');
+    reader.turn.leaf.style.setProperty('--fold-shadow', String(curl * .16));
     const edge = [];
     for (let i = 0; i <= 12; i++) {
       const x = i / 12 * 100;
@@ -290,14 +332,14 @@ export function createBook(onExit) {
       const bend = Math.sin(i / 12 * Math.PI) * curl * 1.3;
       edge.push(`${x}% ${100 - bend}%`);
     }
-    turn.face.style.clipPath = `polygon(${edge.join(',')})`;
+    reader.turn.face.style.clipPath = `polygon(${edge.join(',')})`;
     // Never reveal the incoming illustration underneath the old illustration.
-    turn.still.style.opacity = '1';
+    reader.turn.still.style.opacity = '1';
   }
 
   async function settle(commit) {
-    if (!turn) return;
-    const current = turn;
+    if (!reader.turn) return;
+    const current = reader.turn;
     const from = current.progress;
     const to = commit ? 1 : 0;
     if (!reducedMotion.matches) {
@@ -323,22 +365,22 @@ export function createBook(onExit) {
       current.still.style.display = 'none';
       await right.animate([{ opacity: .3 }, { opacity: 1 }], { duration: reducedMotion.matches ? 120 : 350 }).finished;
     }
-    index = commit ? current.target : current.oldIndex;
+    reader.chapter = commit ? current.target : current.oldIndex;
     render();
     right.scrollTop = commit ? 0 : current.readingScroll;
     if (compactLayout.matches) {
       const destination = commit ? (current.direction > 0 ? 0 : current.width) : current.cameraStart;
       stage.scrollTo({ left: destination, behavior: 'instant' });
-      cameraSide = destination > current.width / 2 ? 1 : 0;
+      reader.side = destination > current.width / 2 ? 1 : 0;
     }
     await left.querySelector('.story-art').decode();
     await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     current.leaf.remove();
     current.still.remove();
     root.classList.remove('page-turning');
-    turn = null;
+    reader.turn = null;
     dots.inert = false;
-    updateNavigation();
+    transition('idle');
   }
 
   async function flip(direction) {
@@ -362,8 +404,8 @@ export function createBook(onExit) {
     root.inert = true;
     root.classList.remove('book-open', 'book-closing', 'book-returning', 'reading-ready');
     root.classList.add('book-closed');
-    index = 0;
-    savedCameraSide = 0;
+    reader.chapter = 0;
+    reader.side = 0;
     render();
     root.classList.add('book-arriving');
   }
@@ -435,9 +477,9 @@ export function createBook(onExit) {
   }
 
   async function open() {
-    if (isOpen || isClosing || root.inert) return;
+    if (reader.phase !== 'closed' || root.inert) return;
     await left.querySelector('.story-art').decode();
-    if (isOpen || isClosing || root.inert) return;
+    if (reader.phase !== 'closed' || root.inert) return;
     const cover = root.querySelector('.book-cover');
     closedCoverRect = cover.getBoundingClientRect();
     closedCoverFrame = cover.querySelector('.cover-frame').cloneNode(true);
@@ -450,26 +492,26 @@ export function createBook(onExit) {
     root.classList.remove('book-closed', 'book-closing');
     root.hidden = false;
     root.inert = false;
-    isOpen = true;
+    transition('opening');
     root.classList.add('book-open');
-    if (compactLayout.matches) { root.classList.add('artwork-ready'); pan(savedCameraSide, false); }
+    if (compactLayout.matches) { root.classList.add('artwork-ready'); pan(reader.side, false); }
     root.querySelector('.book-close').focus({ preventScroll: true });
     cover.getBoundingClientRect();
     const finishCover = compactLayout.matches && !reducedMotion.matches ? await animateCompactCover(true) : null;
     await Promise.allSettled(cover.getAnimations().map(animation => animation.finished));
-    if (!isOpen || isClosing) return;
+    if (reader.phase !== 'opening') return;
     await left.querySelector('.story-art').decode();
     root.classList.add('reading-ready');
-    if (compactLayout.matches) pan(savedCameraSide, false);
+    if (compactLayout.matches) pan(reader.side, false);
     setPagesInert(false);
     if (finishCover) await finishCover();
+    transition('idle');
   }
 
   async function close() {
-    if (!isOpen || turn || isClosing || root.classList.contains('cover-flight')) return;
-    isClosing = true;
+    if (reader.phase !== 'idle') return;
+    transition('closing');
     root.inert = true;
-    savedCameraSide = cameraSide;
     root.querySelectorAll('.memory-point.open').forEach(point => point.classList.remove('open'));
     const finishCover = compactLayout.matches && !reducedMotion.matches ? await animateCompactCover(false) : null;
     root.classList.add('book-closing');
@@ -477,19 +519,18 @@ export function createBook(onExit) {
     if (!reducedMotion.matches) {
       await Promise.allSettled(root.querySelector('.book-cover').getAnimations().map((a) => a.finished));
     }
-    isOpen = false;
     root.inert = false;
     root.classList.remove('book-closing');
     root.classList.add('book-closed');
     setPagesInert(true);
     if (finishCover) await finishCover();
-    isClosing = false;
+    transition('closed');
     root.querySelector('.book-cover').focus({ preventScroll: true });
   }
 
   async function exit() {
-    if (turn || isClosing) return;
-    if (isOpen) await close();
+    if (reader.phase !== 'idle' && reader.phase !== 'closed') return;
+    if (isOpen()) await close();
     root.inert = true;
     await onExit();
   }
@@ -500,7 +541,7 @@ export function createBook(onExit) {
   }
 
   left.addEventListener('click', (event) => {
-    if (!compactLayout.matches && index === 0 && isOpen && !turn && !event.target.closest('button')) close();
+    if (!compactLayout.matches && reader.chapter === 0 && isOpen() && !reader.turn && !event.target.closest('button')) close();
   });
 
   left.addEventListener('pointerenter', () => book.classList.add('hover-left'));
@@ -520,10 +561,10 @@ export function createBook(onExit) {
       memory.classList.toggle('open');
     }
     const chapter = event.target.closest('.book-chapters [data-chapter]');
-    if (chapter && !turn && isOpen) {
+    if (chapter && reader.phase === 'idle') {
       const target = Number(chapter.dataset.chapter);
-      if (Math.abs(target - index) === 1) flip(target - index);
-      else { index = target; render(); }
+      if (Math.abs(target - reader.chapter) === 1) flip(target - reader.chapter);
+      else { reader.chapter = target; render(); }
     }
   });
   root.querySelectorAll('.page-grip').forEach((grip) => {
@@ -533,35 +574,35 @@ export function createBook(onExit) {
       if (event.pointerType === 'touch') return;
       if (event.button !== 0 || !createTurn(direction)) return;
       grip.setPointerCapture(event.pointerId);
-      drag = { start: event.clientX, direction, time: performance.now(), settling: false };
+      reader.drag = { start: event.clientX, direction, time: performance.now(), settling: false };
     });
     grip.addEventListener('pointermove', (event) => {
-      if (!drag || drag.settling || !grip.hasPointerCapture(event.pointerId)) return;
+      if (!reader.drag || reader.drag.settling || !grip.hasPointerCapture(event.pointerId)) return;
       const width = book.getBoundingClientRect().width / 2;
-      const movement = (drag.start - event.clientX) * direction;
+      const movement = (reader.drag.start - event.clientX) * direction;
       pose(Math.min(Math.max(movement / width, 0), .99));
     });
     grip.addEventListener('pointerup', async (event) => {
-      if (!drag || drag.settling || !turn) return;
-      drag.settling = true;
-      const movement = (drag.start - event.clientX) * direction;
-      const speed = movement / Math.max(performance.now() - drag.time, 1);
+      if (!reader.drag || reader.drag.settling || !reader.turn) return;
+      reader.drag.settling = true;
+      const movement = (reader.drag.start - event.clientX) * direction;
+      const speed = movement / Math.max(performance.now() - reader.drag.time, 1);
       const commit = movement >= -8 || speed > .35;
       await settle(commit);
-      drag = null;
+      reader.drag = null;
     });
     grip.addEventListener('lostpointercapture', () => {
-      if (drag && !drag.settling && turn) {
-        drag.settling = true;
-        settle(false).then(() => { drag = null; });
+      if (reader.drag && !reader.drag.settling && reader.turn) {
+        reader.drag.settling = true;
+        settle(false).then(() => { reader.drag = null; });
       }
     });
     grip.addEventListener('pointercancel', () => {
-      if (drag && !drag.settling && turn) { drag.settling = true; settle(false).then(() => { drag = null; }); }
+      if (reader.drag && !reader.drag.settling && reader.turn) { reader.drag.settling = true; settle(false).then(() => { reader.drag = null; }); }
     });
   });
   document.addEventListener('keydown', (event) => {
-    if (!isOpen || root.hidden || root.inert) return;
+    if (!isOpen() || root.hidden || root.inert) return;
     if (event.key === 'Tab') {
       const controls = [...root.querySelectorAll('button:not(:disabled)')].filter(node => !node.closest('[inert]') && node.getClientRects().length);
       const first = controls[0];
@@ -577,6 +618,7 @@ export function createBook(onExit) {
       else close();
     }
   });
+  root.dataset.readerState = reader.phase;
   render();
   return { preload, approach, arrive, open, close, exit, hide };
 }
