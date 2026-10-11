@@ -79,6 +79,7 @@ export function createBook(onExit) {
   let swipeReadyAt = 0;
 
   stage.addEventListener('pointerdown', (event) => {
+    if (event.pointerType === 'touch') return;
     if (!compactLayout.matches || !isOpen || isClosing || turn || !event.isPrimary || event.button !== 0) return;
     if (!root.classList.contains('reading-ready') || performance.now() < swipeReadyAt) return;
     swipe = { id: event.pointerId, x: event.clientX, y: event.clientY, horizontal: false };
@@ -118,6 +119,40 @@ export function createBook(onExit) {
     event.preventDefault();
     event.stopPropagation();
   }, true);
+
+  let touchGesture = null;
+  function touchCenter(touches) {
+    const points = [...touches];
+    return { x: points.reduce((sum, point) => sum + point.clientX, 0) / points.length, y: points.reduce((sum, point) => sum + point.clientY, 0) / points.length, spread: points.length > 1 ? Math.hypot(points[0].clientX - points[1].clientX, points[0].clientY - points[1].clientY) : 0 };
+  }
+  stage.addEventListener('touchstart', (event) => {
+    if (!compactLayout.matches || !isOpen || isClosing || turn || !root.classList.contains('reading-ready')) return;
+    const point = touchCenter(event.touches);
+    touchGesture = { ...point, lastX: point.x, count: event.touches.length, horizontal: false, pinch: false };
+  }, { passive: true });
+  stage.addEventListener('touchmove', (event) => {
+    if (!touchGesture || event.touches.length !== touchGesture.count) return;
+    const point = touchCenter(event.touches);
+    const dx = point.x - touchGesture.x;
+    const dy = point.y - touchGesture.y;
+    if (Math.abs(point.spread - touchGesture.spread) > 20) { touchGesture.pinch = true; return; }
+    touchGesture.lastX = point.x;
+    if (Math.abs(dx) > 12 && Math.abs(dx) > Math.abs(dy) * 1.3) {
+      touchGesture.horizontal = true;
+      event.preventDefault();
+    }
+  }, { passive: false });
+  stage.addEventListener('touchend', (event) => {
+    if (!touchGesture) return;
+    const gesture = touchGesture;
+    touchGesture = null;
+    if (!gesture.horizontal || gesture.pinch || turn || isClosing) return;
+    event.preventDefault();
+    suppressClickUntil = performance.now() + 400;
+    const dx = gesture.lastX - gesture.x;
+    if (Math.abs(dx) >= 28) navigate(dx < 0 ? 1 : -1);
+  }, { passive: false });
+  stage.addEventListener('touchcancel', () => { touchGesture = null; });
 
   let wheelDistance = 0;
   let wheelLastAt = 0;
@@ -198,39 +233,14 @@ export function createBook(onExit) {
     else left.innerHTML = illustration(chapters[target], target);
     const width = book.clientWidth / 2;
     const height = book.clientHeight;
-    const slices = [];
-    const count = 20;
-    for (let i = 0; i < count; i++) {
-      const slice = document.createElement('div');
-      slice.className = 'paper-slice';
-      slice.style.width = `${width / count}px`;
-      slice.style.transformOrigin = direction > 0 ? 'left center' : 'right center';
-      for (const [side, original] of [['front', face], ['back', back]]) {
-        const surface = document.createElement('div');
-        surface.className = `slice-surface slice-${side}`;
-        const content = original.cloneNode(true);
-        content.style.width = `${width}px`;
-        const scrollOffset = side === 'front' ? sourceScroll : 0;
-        content.style.height = `${height + scrollOffset}px`;
-        content.style.top = `${-scrollOffset}px`;
-        const offset = side === 'front' ? i : count - 1 - i;
-        const column = direction > 0 ? offset : count - 1 - offset;
-        content.style.left = `${-column * width / count}px`;
-        if (column === 0 && original.classList.contains('page-illustration')) surface.style.borderRadius = '12px 0 0 12px';
-        if (column === count - 1 && original.classList.contains('page-reading')) surface.style.borderRadius = '0 12px 12px 0';
-        surface.append(content);
-        slice.append(surface);
-      }
-      slices.push(slice);
-      leaf.append(slice);
-    }
-    face.remove();
-    back.remove();
-    removeCloneIds(leaf);
-    turn.slices = slices;
+    face.style.width = back.style.width = `${width}px`;
+    face.style.height = back.style.height = `${height}px`;
     turn.width = width;
+    turn.face = face;
+    turn.sourceScroll = sourceScroll;
     previous.disabled = next.disabled = true;
     book.append(still, leaf);
+    face.scrollTop = sourceScroll;
     root.classList.add('page-turning');
     pose(0);
     dots.inert = true;
@@ -241,19 +251,23 @@ export function createBook(onExit) {
     if (!turn) return;
     turn.progress = p;
     const direction = turn.direction;
-    const step = turn.width / turn.slices.length;
-    const curl = Math.sin(p * Math.PI) * .85;
-    let x = 0;
-    let z = 0;
-    turn.slices.forEach((slice, i) => {
-      const u = (i + .5) / turn.slices.length;
-      const angle = -direction * p * Math.PI + direction * curl * (u - .2);
-      const leftEdge = direction > 0 ? x : turn.width - x - step;
-      slice.style.transform = `translate3d(${leftEdge}px,0,${z}px) rotateY(${angle * 180 / Math.PI}deg)`;
-      slice.style.setProperty('--fold-shadow', String(Math.min(.32, Math.abs(Math.sin(angle)) * .16 + curl * u * .12)));
-      x += Math.cos(angle) * step;
-      z -= direction * Math.sin(angle) * step;
-    });
+    const curl = Math.sin(p * Math.PI);
+    const angle = -direction * p * 180;
+    // One continuous surface avoids independently rasterized strip seams.
+    turn.leaf.style.setProperty('transform', `rotateY(${angle}deg) skewY(${direction * curl * 1.8}deg)`, 'important');
+    turn.leaf.style.setProperty('--fold-shadow', String(curl * .16));
+    const edge = [];
+    for (let i = 0; i <= 12; i++) {
+      const x = i / 12 * 100;
+      const bend = Math.sin(i / 12 * Math.PI) * curl * 1.3;
+      edge.push(`${x}% ${bend}%`);
+    }
+    for (let i = 12; i >= 0; i--) {
+      const x = i / 12 * 100;
+      const bend = Math.sin(i / 12 * Math.PI) * curl * 1.3;
+      edge.push(`${x}% ${100 - bend}%`);
+    }
+    turn.face.style.clipPath = `polygon(${edge.join(',')})`;
     // Never reveal the incoming illustration underneath the old illustration.
     turn.still.style.opacity = '1';
   }
@@ -344,18 +358,18 @@ export function createBook(onExit) {
     ghost.inert = true;
     ghost.setAttribute('aria-hidden', 'true');
     const rect = closedCoverRect;
-    Object.assign(ghost.style, { position: 'fixed', left: `${rect.left}px`, top: `${rect.top}px`, width: `${rect.width}px`, height: `${rect.height}px`, minHeight: '0', zIndex: '40', visibility: 'visible', transformOrigin: 'left center', transition: 'none' });
+    Object.assign(ghost.style, { position: 'fixed', left: `${rect.left}px`, top: `${rect.top}px`, width: `${rect.width}px`, height: `${rect.height}px`, minHeight: '0', zIndex: '25', visibility: 'visible', transformOrigin: 'left center', transition: 'none' });
     root.classList.add('cover-flight');
     root.append(ghost);
     const frames = [
       { transform: 'perspective(1500px) rotateY(0deg)', opacity: 1, offset: 0 },
-      { transform: 'perspective(1500px) rotateY(-95deg)', opacity: .85, offset: .65 },
+      { transform: 'perspective(1500px) rotateY(-95deg)', opacity: 1, offset: .65 },
       { transform: 'perspective(1500px) rotateY(-150deg)', opacity: 0, offset: 1 },
     ];
-    const options = { duration: 1000, easing: 'cubic-bezier(.22,.68,.22,1)', fill: 'both' };
-    const zoom = [{ transform: 'translateY(20px) scale(.9)', opacity: .65 }, { transform: 'translateY(0) scale(1)', opacity: 1 }];
+    const options = { duration: 1300, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'both' };
+    const zoom = [{ transform: 'translateY(45px) scale(.78)', opacity: .35 }, { transform: 'translateY(0) scale(1)', opacity: 1 }];
     await Promise.all([
-      ghost.animate(frames, { ...options, direction: opening ? 'normal' : 'reverse' }).finished,
+      ghost.animate(opening ? frames : [{transform:'perspective(1500px) rotateY(-85deg)',opacity:1},{transform:'perspective(1500px) rotateY(0deg)',opacity:1}], options).finished,
       stage.animate(zoom, { ...options, direction: opening ? 'normal' : 'reverse', fill: 'none' }).finished,
     ]);
     ghost.remove();
