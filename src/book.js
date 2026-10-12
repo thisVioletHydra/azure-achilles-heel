@@ -1,4 +1,5 @@
 import { chapters } from './story.js';
+import { createWheelGesture } from './wheel-gesture.js';
 
 const numbers = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII'];
 
@@ -262,13 +263,7 @@ export function createBook(onExit) {
     if (reader.gesture?.kind === 'touch') { finishGesture(); continueNavigation(); }
   });
 
-  let wheelDistance = 0;
-  let wheelLastAt = 0;
-  let wheelUsed = false;
-  let wheelDirection = 0;
-  let wheelAmplitude = 0;
-  let wheelPeak = 0;
-  let wheelCommittedAt = -Infinity;
+  const acceptWheel = createWheelGesture();
   root.addEventListener('wheel', (event) => {
     if (!stage.contains(event.target) || !compactLayout.matches || !isOpen() || event.ctrlKey) return;
     // A new trackpad input releases an unfinished mouse gesture, not text selection.
@@ -278,26 +273,9 @@ export function createBook(onExit) {
       return;
     }
     event.preventDefault();
-    const now = performance.now();
     const distance = event.deltaX * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? stage.clientWidth : 1);
-    const direction = Math.sign(distance);
-    const amplitude = Math.abs(distance);
-    const newStroke = wheelUsed && now - wheelCommittedAt > 160 && wheelAmplitude < wheelPeak * .4 && amplitude > wheelAmplitude * 2 + 8;
-    if (now - wheelLastAt > 120 || direction !== wheelDirection || newStroke) {
-      wheelDistance = 0;
-      wheelUsed = false;
-      wheelPeak = 0;
-    }
-    wheelLastAt = now;
-    wheelDirection = direction;
-    wheelAmplitude = amplitude;
-    wheelPeak = Math.max(wheelPeak, amplitude);
-    if (wheelUsed) return;
-    wheelDistance += distance;
-    if (Math.abs(wheelDistance) < 28) return;
-    wheelUsed = true;
-    wheelCommittedAt = now;
-    requestNavigation(wheelDistance > 0 ? 1 : -1);
+    const direction = acceptWheel({ distance, time: performance.now() });
+    if (direction) requestNavigation(direction);
   }, { passive: false, capture: true });
 
   function render() {
