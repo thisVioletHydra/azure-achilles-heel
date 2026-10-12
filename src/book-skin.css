@@ -221,7 +221,8 @@
 }
 
 @media (max-width: 1100px) {
-  #storybook.book-closed { background-position: 12% center; }
+  #storybook,
+  #storybook[data-mood] { background-position: 12% center; }
   .book-header {
     width: calc(100% - 24px);
     margin: 8px 12px 4px;
