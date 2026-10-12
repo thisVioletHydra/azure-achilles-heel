@@ -35,7 +35,7 @@ export function createBook(onExit) {
   const dots = root.querySelector('.book-chapters');
   const stage = root.querySelector('.book-stage');
   const decodedImages = new Map();
-  const reader = { phase: 'closed', chapter: 0, side: 0, turn: null, drag: null, gesture: null, memory: null, destination: null };
+  const reader = { phase: 'closed', chapter: 0, side: 0, pan: null, turn: null, drag: null, gesture: null, memory: null, destination: null };
   function showMemory(point, pinned = false) {
     if (reader.memory) {
       reader.memory.point.classList.remove('open');
@@ -70,7 +70,8 @@ export function createBook(onExit) {
   let closedCoverFrame = null;
   async function pan(side, smooth = true) {
     showMemory(null);
-    const destination = side * book.clientWidth / 2;
+    const width = book.clientWidth / 2;
+    const destination = side * width;
     if (!smooth || reducedMotion.matches) {
       reader.side = side;
       stage.scrollTo({ left: destination, behavior: 'instant' });
@@ -78,20 +79,31 @@ export function createBook(onExit) {
       return;
     }
     if (!transition('panning')) return;
-    const origin = stage.scrollLeft;
-    const startedAt = performance.now();
+    const motion = { from: readingPosition(), to: reader.chapter * 2 + side, side };
+    reader.pan = motion;
+    let origin = stage.scrollLeft;
+    let targetSide = side;
+    let startedAt = performance.now();
+    let duration = 420;
     await new Promise(resolve => {
       function tick(now) {
-        const progress = Math.min((now - startedAt) / 420, 1);
+        if (targetSide !== motion.side) {
+          targetSide = motion.side;
+          origin = stage.scrollLeft;
+          startedAt = now;
+          duration = Math.max(80, Math.abs(targetSide * width - origin) / width * 420);
+        }
+        const progress = Math.min((now - startedAt) / duration, 1);
         const eased = progress * progress * (3 - 2 * progress);
-        stage.scrollTo({ left: origin + (destination - origin) * eased, behavior: 'instant' });
+        stage.scrollTo({ left: origin + (targetSide * width - origin) * eased, behavior: 'instant' });
         if (progress < 1) requestAnimationFrame(tick);
         else resolve();
       }
       requestAnimationFrame(tick);
     });
-    reader.side = side;
-    stage.scrollTo({ left: destination, behavior: 'instant' });
+    reader.side = motion.side;
+    reader.pan = null;
+    stage.scrollTo({ left: reader.side * width, behavior: 'instant' });
     transition('idle');
     continueNavigation();
   }
@@ -125,7 +137,19 @@ export function createBook(onExit) {
   function requestNavigation(direction) {
     if (!['idle', 'panning', 'turning'].includes(reader.phase)) return;
     const last = compactLayout.matches ? chapters.length * 2 - 1 : chapters.length - 1;
-    reader.destination = Math.max(0, Math.min(last, (reader.destination ?? readingPosition()) + direction));
+    const motion = reader.pan ?? reader.turn;
+    let destination = (reader.destination ?? readingPosition()) + direction;
+    if (motion) {
+      const from = motion.from;
+      const to = motion.to;
+      const motionDirection = Math.sign(to - from);
+      // Reverse the active movement immediately; retain at most one following step.
+      if (direction !== motionDirection) destination = from;
+      else destination = reader.destination === from ? to : to + direction;
+      if (reader.pan) motion.side = destination === from ? reader.side : to % 2;
+      else if (!motion.finished) motion.commit = destination !== from;
+    }
+    reader.destination = Math.max(0, Math.min(last, destination));
     continueNavigation();
   }
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
@@ -244,14 +268,13 @@ export function createBook(onExit) {
   let wheelDirection = 0;
   let wheelAmplitude = 0;
   let wheelPeak = 0;
+  let wheelCommittedAt = -Infinity;
   root.addEventListener('wheel', (event) => {
     if (!stage.contains(event.target) || !compactLayout.matches || !isOpen() || event.ctrlKey) return;
     // A new trackpad input releases an unfinished mouse gesture, not text selection.
     if (reader.gesture?.kind === 'pointer') finishGesture();
     if (Math.abs(event.deltaX) < Math.abs(event.deltaY) * .75 || event.deltaX === 0) {
-      wheelUsed = false;
-      wheelDistance = 0;
-      wheelAmplitude = wheelPeak = 0;
+      // Vertical noise inside an ongoing stroke must not create another page turn.
       return;
     }
     event.preventDefault();
@@ -259,7 +282,7 @@ export function createBook(onExit) {
     const distance = event.deltaX * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? stage.clientWidth : 1);
     const direction = Math.sign(distance);
     const amplitude = Math.abs(distance);
-    const newStroke = wheelUsed && wheelAmplitude < wheelPeak * .4 && amplitude > wheelAmplitude * 2 + 8;
+    const newStroke = wheelUsed && now - wheelCommittedAt > 160 && wheelAmplitude < wheelPeak * .4 && amplitude > wheelAmplitude * 2 + 8;
     if (now - wheelLastAt > 120 || direction !== wheelDirection || newStroke) {
       wheelDistance = 0;
       wheelUsed = false;
@@ -273,6 +296,7 @@ export function createBook(onExit) {
     wheelDistance += distance;
     if (Math.abs(wheelDistance) < 28) return;
     wheelUsed = true;
+    wheelCommittedAt = now;
     requestNavigation(wheelDistance > 0 ? 1 : -1);
   }, { passive: false, capture: true });
 
@@ -342,7 +366,8 @@ export function createBook(onExit) {
     const still = stillPage.cloneNode(true);
     still.classList.add('turn-still');
     removeCloneIds(still);
-    reader.turn = { leaf, still, direction, oldIndex, target, progress: 0, cameraStart: stage.scrollLeft, readingScroll: right.scrollTop };
+    const destination = compactLayout.matches ? target * 2 + (direction > 0 ? 0 : 1) : target;
+    reader.turn = { leaf, still, direction, oldIndex, target, from: readingPosition(), to: destination, progress: 0, cameraStart: stage.scrollLeft, readingScroll: right.scrollTop };
     // The old opposite page remains in place until the turned sheet lands.
     if (direction > 0) {
       right.innerHTML = reading(chapters[target], target);
@@ -394,13 +419,21 @@ export function createBook(onExit) {
   async function settle(commit) {
     if (!reader.turn) return;
     const current = reader.turn;
-    const from = current.progress;
-    const to = commit ? 1 : 0;
+    current.commit = commit;
+    let from = current.progress;
+    let to = commit ? 1 : 0;
     if (!reducedMotion.matches) {
-      const start = performance.now();
-      const duration = Math.max(220, Math.abs(to - from) * 940);
+      let start = performance.now();
+      let duration = Math.max(80, Math.abs(to - from) * 940);
       await new Promise((resolve) => {
         function tick(now) {
+          const target = current.commit ? 1 : 0;
+          if (target !== to) {
+            from = current.progress;
+            to = target;
+            start = now;
+            duration = Math.max(80, Math.abs(to - from) * 940);
+          }
           const p = Math.min((now - start) / duration, 1);
           const eased = p < .5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
           const position = from + (to - from) * eased;
@@ -419,6 +452,8 @@ export function createBook(onExit) {
       current.still.style.display = 'none';
       await right.animate([{ opacity: .3 }, { opacity: 1 }], { duration: reducedMotion.matches ? 120 : 350 }).finished;
     }
+    current.finished = true;
+    commit = current.commit;
     reader.chapter = commit ? current.target : current.oldIndex;
     render();
     right.scrollTop = commit ? 0 : current.readingScroll;
