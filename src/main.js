@@ -88,6 +88,7 @@ function flyTo(destination, onApproach, duration) {
 const book = createBook(async () => {
   if (travelling) return;
   travelling = true;
+  world?.resume();
   const flight = flyTo('threshold', undefined, reducedMotion.matches ? .15 : 1.2);
   await passClouds(async () => {
     await flight;
@@ -121,6 +122,7 @@ async function enterStory() {
     await new Promise(requestAnimationFrame);
   });
   await flight;
+  world?.pause();
   travelling = false;
   book.arrive();
 }

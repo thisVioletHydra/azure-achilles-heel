@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { createFrameLoop } from './frame-loop.js';
 
 function mesh(geometry, material, parent, position = [0, 0, 0], scale = [1, 1, 1]) {
   const object = new THREE.Mesh(geometry, material);
@@ -73,14 +74,15 @@ async function makeForeground() {
 
 export async function createWorld(canvas, onReady) {
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
-  const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, powerPreference: 'high-performance' });
-  renderer.setPixelRatio(Math.min(devicePixelRatio, 1.75));
+  const mobile = matchMedia('(max-width: 1100px)');
+  const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: !mobile.matches, powerPreference: mobile.matches ? 'low-power' : 'high-performance' });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, mobile.matches ? 1.25 : 1.75));
   renderer.setClearColor(0x000000, 0);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.3;
   renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.shadowMap.type = THREE.PCFShadowMap;
   renderer.shadowMap.autoUpdate = false;
   renderer.shadowMap.needsUpdate = true;
   const scene = new THREE.Scene();
@@ -187,8 +189,8 @@ export async function createWorld(canvas, onReady) {
   let place = 'threshold';
   let transition = null;
   let elapsed = 0;
-  let previousTime = 0;
-  let frame = 0;
+  let suspended = false;
+  let contextLost = false;
   let cinematic = false;
   let hover = 0;
   const lookTarget = new THREE.Vector3(0, 4, 0);
@@ -200,6 +202,7 @@ export async function createWorld(canvas, onReady) {
   const baseTarget = poses.threshold.target.clone();
 
   function resize() {
+    renderer.setPixelRatio(Math.min(devicePixelRatio, mobile.matches ? 1.25 : 1.75));
     renderer.setSize(innerWidth, document.querySelector('#experience').clientHeight, false);
     camera.aspect = canvas.clientWidth / canvas.clientHeight;
     camera.updateProjectionMatrix();
@@ -264,10 +267,7 @@ export async function createWorld(canvas, onReady) {
     }
   }
 
-  function animate(time) {
-    frame = requestAnimationFrame(animate);
-    const dt = Math.min((time - previousTime) / 1000 || .016, .05);
-    previousTime = time;
+  function animate(time, dt) {
     elapsed += dt;
     updateTransition(dt);
     const depthActive = place === 'threshold' && !transition && finePointer.matches && !reducedMotion.matches;
@@ -334,22 +334,26 @@ export async function createWorld(canvas, onReady) {
   document.documentElement.addEventListener('pointerleave', () => pointer.set(0, 0));
   addEventListener('blur', () => pointer.set(0, 0));
   addEventListener('resize', resize);
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden) cancelAnimationFrame(frame);
-    else { previousTime = performance.now(); frame = requestAnimationFrame(animate); }
-  });
+  const loop = createFrameLoop(animate);
+  function syncLoop() {
+    if (suspended || document.hidden || contextLost) loop.stop();
+    else loop.start();
+  }
+  document.addEventListener('visibilitychange', syncLoop);
   canvas.addEventListener('webglcontextlost', (event) => {
     event.preventDefault();
-    cancelAnimationFrame(frame);
+    contextLost = true;
+    syncLoop();
     document.querySelector('.render-fallback').hidden = false;
   });
   canvas.addEventListener('webglcontextrestored', () => {
     document.querySelector('.render-fallback').hidden = true;
-    previousTime = performance.now();
-    frame = requestAnimationFrame(animate);
+    contextLost = false;
+    renderer.shadowMap.needsUpdate = true;
+    syncLoop();
   });
   resize();
-  frame = requestAnimationFrame(animate);
+  syncLoop();
   onReady();
-  return { goTo, setCinematic(value) { cinematic = value; }, setHover(value) { hover = value ? 1 : 0; }, getPlace() { return place; } };
+  return { goTo, pause() { suspended = true; syncLoop(); }, resume() { suspended = false; syncLoop(); }, setCinematic(value) { cinematic = value; }, setHover(value) { hover = value ? 1 : 0; }, getPlace() { return place; } };
 }
