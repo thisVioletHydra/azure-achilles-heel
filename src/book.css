@@ -328,6 +328,7 @@
 /* A clipped viewport contains an independent 3D scene. Clipping the book itself
    flattens its faces, so it must never own the animated sheet's clip-path. */
 .book-open .book-stage{perspective:none}
+.book-stage:before{pointer-events:none}
 .page-turn-viewport{position:absolute;inset:0;z-index:9;overflow:hidden;pointer-events:none;border-radius:12px}
 .page-turn-scene{position:absolute;inset:0;perspective:2400px;perspective-origin:var(--turn-origin,50%) 50%;transform-style:preserve-3d}
 .page-turning .book{clip-path:none}
