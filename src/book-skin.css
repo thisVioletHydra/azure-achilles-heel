@@ -1,0 +1,290 @@
+/* Materials and decoration only. Layout and input belong to book.css/book.js. */
+#storybook,
+#storybook[data-mood] {
+  --book-brass: #d5ae6e;
+  --book-ink: #24434b;
+  --folio-surface: url('/assets/book/folio-border.svg'),
+    radial-gradient(ellipse at 50% 35%, #fff9e6 0%, #f3e7cb 72%, #e3cda6 100%);
+  background: #352419 url('/assets/book/writing-desk.webp') center / cover no-repeat;
+  color: #f4e3c4;
+}
+
+.book-stage::before { content: none; }
+.book-atmosphere {
+  background: radial-gradient(ellipse at 0% 10%, #ffd1901a, transparent 55%);
+  pointer-events: none;
+}
+
+.book-header {
+  width: min(1100px, calc(100% - 64px));
+  margin: 14px auto 18px;
+  padding: 12px 24px;
+  min-height: 54px;
+  border: 1px solid #c39d5a66;
+  border-radius: 3px;
+  background: linear-gradient(100deg, #112e38ed, #203b40e8 50%, #112c36ed);
+  box-shadow: inset 0 0 0 3px #b6975b12, 0 5px 18px #140d0940;
+  color: #f0dfb8;
+}
+.book-wordmark { color: #ebcb87; letter-spacing: 3px; }
+.book-wordmark small {
+  display: block;
+  margin-top: 3px;
+  font: 8px/1.3 Manrope, sans-serif;
+  letter-spacing: 2px;
+  color: #d2c4a7;
+}
+.book-closed .book-progress,
+.book-closed .book-close { display: none; }
+.book-progress { color: #e2c99b; }
+.book-home,
+.book-close { color: #f2dfbc; }
+
+.book-cover,
+.binding-scene > .binding-cover {
+  background: #123847 url('/assets/book/azure-cover.webp') center / 100% 100% no-repeat;
+  border: 1px solid #a17d45;
+  border-radius: 7px 12px 12px 7px;
+  color: #ffe5ae;
+  box-shadow: inset 2px 1px 2px #fff0c840, inset -2px -2px 3px #071f2a80,
+    3px 5px 0 #1a3540, 4px 7px 0 #8c6d40, 5px 11px 16px #180e0d70;
+}
+.book-cover::before {
+  width: 13px;
+  background: linear-gradient(90deg, #09212b, #284c55 35%, #0f2b36 75%, #b2976338);
+  border-right-color: #c2a67466;
+}
+.cover-frame,
+.binding-cover-content .cover-frame {
+  inset: 11% 12%;
+  gap: 0;
+  padding: 0;
+  border: 0;
+  outline: none;
+  justify-content: flex-start;
+}
+.cover-kicker {
+  margin-top: 5%;
+  max-width: 92%;
+  font-size: clamp(7px, .6vw, 10px);
+  line-height: 1.8;
+  letter-spacing: 2px;
+  color: #e6cc91;
+  text-shadow: 0 1px 2px #041b25;
+}
+.cover-title,
+.book-cover .cover-title {
+  margin: 16px 0 8px;
+  font-size: clamp(45px, 4.8vw, 88px);
+  font-weight: 600;
+  letter-spacing: -2px;
+  line-height: 1.05;
+  color: #ffe4a6;
+  text-shadow: 0 2px 0 #754f23, 0 4px 8px #001a26;
+}
+.cover-name {
+  margin-top: 8px;
+  font-size: 12px;
+  line-height: 1.5;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  color: #ead09c;
+}
+.cover-emblem { display: none; }
+.cover-line {
+  max-width: 85%;
+  margin-top: 28px;
+  font-size: 15px;
+  line-height: 1.5;
+  color: #f1dfb3;
+  text-shadow: 0 2px 4px #071e29;
+}
+.cover-ribbon {
+  position: absolute;
+  left: 24%;
+  top: 98.5%;
+  width: 6%;
+  height: 9%;
+  background: linear-gradient(90deg, #102f3c, #45717b 20%, #315a67 70%, #132e3c);
+  border-inline: 1px solid #9b986558;
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 83%, 0 100%);
+  transform: rotate(-5deg);
+  transform-origin: top center;
+  pointer-events: none;
+}
+.cover-ribbon::after {
+  content: '';
+  position: absolute;
+  inset: 5px 5px 10px;
+  border-inline: 1px dashed #d6b57860;
+}
+
+.book::before {
+  background-image: repeating-linear-gradient(0deg, #9f8967 0 1px, #e8d9ba 1px 3px, #c9b18a 3px 4px);
+  border-bottom-color: #183943;
+  border-right-color: #8a6d43;
+}
+.reading-ready .book::after {
+  content: '';
+  position: absolute;
+  inset: -5px -8px -12px;
+  z-index: -2;
+  border: 1px solid #b5945a;
+  border-radius: 12px;
+  background: linear-gradient(105deg, #13323d, #28434a, #0f2d38);
+  box-shadow: 0 14px 28px #140e0bb3;
+  transform: translateZ(-8px);
+  pointer-events: none;
+}
+.paper-page,
+.turn-face,
+.book-open .turn-face {
+  background-color: #f3e7cb;
+  background-image: var(--folio-surface);
+  background-size: 100% 100%;
+  color: var(--book-ink);
+}
+.page-running {
+  color: #8b734d;
+  border-bottom-color: #b49b7155;
+}
+.chapter-copy h2 { color: #244b55; }
+.chapter-kicker { color: #927346; }
+.chapter-text p:first-child::first-letter { color: #255767; text-shadow: 1px 1px #c6a16a55; }
+.chapter-ornament {
+  height: 22px;
+  font-size: 0;
+  background: url('/assets/book/folio-divider.svg') center / 150px 22px no-repeat;
+}
+.chapter-copy blockquote {
+  color: #785e3d;
+  border-left: 2px solid #ab8a56;
+}
+.illustration-caption { color: #7e613f; }
+.page-number { color: #9a7c51; }
+.illustration-window { border-color: #a6895b55; }
+
+.book-footer { gap: 16px; }
+.book-footer > .book-nav {
+  min-height: 44px;
+  padding: 8px 18px;
+  border: 1px solid #c8a36177;
+  border-radius: 3px 10px 3px 10px;
+  background: linear-gradient(110deg, #153340f0, #26454aeb);
+  box-shadow: inset 0 0 0 3px #d5b77712, 0 3px 8px #1b110a55;
+  color: #f3dfb4;
+}
+.book-footer > .book-nav:hover:not(:disabled),
+.book-exit:hover { border-color: #eed398; background-color: #31535a; }
+.book-nav .ui-arrow { color: #dec18c; }
+.book-chapters { gap: 6px; }
+.book-chapters button {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid #c6a56c88;
+  border-radius: 50%;
+  background: #18333edb;
+  color: #eed9ad;
+  opacity: .8;
+}
+.book-chapters button[aria-current] {
+  border-color: #e6c27b;
+  background: #dcc18e;
+  color: #263c41;
+  box-shadow: 0 0 0 3px #c8a36a33;
+}
+.book-hint { color: #eedec2; text-shadow: 0 1px 3px #21170d; }
+.closed-book-actions { margin-top: 16px; color: #f4dfb7; text-shadow: 0 1px 4px #180e08; }
+.book-exit {
+  min-height: 46px;
+  margin-top: 12px;
+  padding: 11px 26px;
+  border: 1px solid #d0ac67;
+  border-radius: 3px 12px 3px 12px;
+  background: linear-gradient(100deg, #193844, #305058);
+  color: #ffe7b8;
+  box-shadow: inset 0 0 0 3px #cfb47818, 0 5px 14px #20120a70;
+}
+.memory-mark {
+  border: 1px solid #ebcf8f;
+  background: #1c4957eb;
+  color: #fff1c5;
+  box-shadow: 0 0 0 4px #c8a56540, 0 2px 5px #33201570;
+}
+.memory-tooltip {
+  border-color: #b79a66;
+  background: #fbefd8f7;
+  color: #4c4736;
+}
+
+@media (max-width: 1100px) {
+  #storybook.book-closed { background-position: 12% center; }
+  .book-header {
+    width: calc(100% - 24px);
+    margin: 8px 12px 4px;
+    min-height: 50px;
+    padding: 8px 14px;
+    gap: 8px;
+  }
+  .book-wordmark { font-size: 17px; letter-spacing: 1px; }
+  .book-close { font-size: 9px; }
+  .book-cover .cover-title { font-size: clamp(38px, 9vw, 66px); }
+  .cover-kicker { margin-top: 8%; font-size: 7px; letter-spacing: 1.3px; }
+  .cover-name { font-size: 10px; letter-spacing: 3px; }
+  .cover-line { margin-top: 20px; font-size: 12px; }
+  .binding-cover-content .cover-frame { inset: 11% 12%; }
+  .book-open .book-footer { min-height: 52px; }
+  .book-footer > .book-nav { min-height: 42px; padding: 7px 14px; gap: 10px; }
+  .book-hint { font-size: 9px; }
+  .closed-book-actions { margin-top: 34px; }
+}
+
+@media (max-width: 600px) and (max-height: 700px) {
+  .cover-kicker { margin-top: 2%; font-size: 6px; }
+  .book-cover .cover-title { margin-top: 12px; font-size: 36px; }
+  .cover-name { margin-top: 2px; font-size: 9px; }
+  .cover-line { margin-top: 12px; font-size: 10px; }
+}
+
+@media (max-width: 1100px) and (max-height: 500px) {
+  .book-header { min-height: 40px; margin-block: 4px; padding: 4px 12px; }
+  .book-wordmark small { display: none; }
+  .book-open .page-illustration,
+  .binding-scene .page-illustration { padding: 12px 20px 16px; }
+  .book-open .page-illustration .page-running,
+  .book-open .illustration-caption,
+  .book-open .page-illustration .page-number,
+  .binding-scene .page-illustration .page-running,
+  .binding-scene .illustration-caption,
+  .binding-scene .page-illustration .page-number { display: none; }
+  .book-open .illustration-window,
+  .binding-scene .illustration-window { height: 100%; margin: 0; }
+  .book-open .book-footer { padding-block: 4px; }
+  .book-open .book-hint { margin-block: 2px 8px; }
+  .memory-point .memory-tooltip,
+  .memory-point.memory-below .memory-tooltip,
+  .memory-point.open .memory-tooltip,
+  .memory-point:focus-visible .memory-tooltip {
+    left: 65px;
+    top: 50%;
+    bottom: auto;
+    width: 220px;
+    max-height: clamp(80px, calc(100dvh - 190px), 145px);
+    transform: translate(0, -50%);
+    font-size: 10px;
+  }
+  .book-cover .cover-title { margin: 6px 0 2px; font-size: 24px; }
+  .cover-kicker { margin-top: 2%; font-size: 5px; }
+  .cover-name { margin-top: 2px; font-size: 7px; letter-spacing: 1px; }
+  .cover-line { display: none; }
+  .closed-book-actions { margin-top: 24px; }
+  .closed-book-actions p { display: none; }
+  .book-exit { min-height: 40px; margin-top: 4px; padding-block: 8px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #storybook .book { transition: none; }
+}
