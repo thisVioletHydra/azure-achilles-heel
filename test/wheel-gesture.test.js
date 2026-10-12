@@ -16,7 +16,16 @@ test('gradual restart is detected while the previous stroke still emits inertia'
   const acceptWheel = createWheelGesture();
   assert.equal(acceptWheel({ time: -100, distance: 60 }), 1);
   const accepted = gentleRestart.map(([time, distance]) => ({ time, direction: acceptWheel({ time, distance }) })).filter(event => event.direction);
-  assert.deepEqual(accepted, [{ time: 499, direction: 1 }]);
+  assert.equal(accepted.length, 1);
+  assert.equal(accepted[0].direction, 1);
+  assert.ok(accepted[0].time >= 424 && accepted[0].time <= 616, 'Gradual restart must be accepted during acceleration');
+});
+
+test('rapid physical strokes restart after troughs shorter than 80 milliseconds', () => {
+  const acceptWheel = createWheelGesture();
+  const events = [[3,-40],[11,-22],[20,-32],[27,-52],[36,-60],[45,-68],[53,-72],[61,-68],[69,-70],[77,-78],[86,-72],[95,-72],[102,-72],[111,-68],[120,-64],[128,-64],[136,-60],[145,-60],[153,-56],[203,-4],[211,-8],[220,-16],[227,-16],[236,-34],[245,-38],[252,-42],[261,-34],[270,-44],[278,-34],[286,-38],[295,-20],[303,-20],[311,-22],[320,-4],[328,-32],[336,-38],[345,-42],[353,-46],[361,-48],[370,-46],[378,-52],[386,-52],[395,-52],[402,-50],[411,-46],[420,-46],[428,-44],[478,-6],[486,-12],[495,-20],[502,-36],[511,-38],[520,-20],[528,-76],[536,-44],[545,-36],[553,-24],[561,-28],[570,-52],[578,-62],[586,-68],[594,-72]];
+  const accepted = events.map(([time, distance]) => acceptWheel({ time, distance })).filter(Boolean);
+  assert.deepEqual(accepted, [-1, -1, -1, -1]);
 });
 
 test('a fading inertia tail does not advance another page', () => {

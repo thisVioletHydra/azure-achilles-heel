@@ -145,10 +145,16 @@ export function createBook(onExit) {
       const to = motion.to;
       const motionDirection = Math.sign(to - from);
       // Reverse the active movement immediately; retain at most one following step.
-      if (direction !== motionDirection) destination = from;
-      else destination = reader.destination === from ? to : to + direction;
-      if (reader.pan) motion.side = destination === from ? reader.side : to % 2;
-      else if (!motion.finished) motion.commit = destination !== from;
+      if (direction !== motionDirection) {
+        const returning = reader.destination !== null && (reader.destination - from) * direction >= 0;
+        destination = returning ? from + direction : from;
+      } else {
+        const cancelled = reader.pan ? motion.side === reader.side : !motion.commit;
+        destination = cancelled ? to : to + direction;
+      }
+      const returning = (destination - from) * motionDirection <= 0;
+      if (reader.pan) motion.side = returning ? reader.side : to % 2;
+      else if (!motion.finished) motion.commit = !returning;
     }
     reader.destination = Math.max(0, Math.min(last, destination));
     continueNavigation();
