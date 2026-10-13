@@ -2,7 +2,12 @@ import { chapters } from './story.js';
 import { createWheelGesture, isHorizontalWheel, swipeDirection } from './wheel-gesture.js';
 import { navigationTarget } from './book-navigation.js';
 
-const numbers = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII'];
+const numbers = ['✧', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII'];
+
+function chapterLabel(chapter, index) {
+  if (chapter.kind === 'introduction') return 'Вступление';
+  return `Глава ${numbers[index]}`;
+}
 
 function illustration(chapter, index) {
   return `<div class="page-running">ИСТОРИЯ ЛАЗУРНОЙ <span>ЧИЛЛИ ХИИЛ</span></div>
@@ -13,10 +18,15 @@ function illustration(chapter, index) {
 }
 
 function reading(chapter, index) {
-  return `<div class="page-running">КНИГА ПЕРВАЯ <span>ГЛАВА ${numbers[index]}</span></div>
-    <div class="chapter-copy"><p class="chapter-kicker">ГЛАВА ${numbers[index]} <span>—</span> ${index === 7 ? 'ЭПИЛОГ' : 'ВОСПОМИНАНИЕ'}</p><h2 id="chapter-title">${chapter.title}</h2><div class="chapter-ornament" aria-hidden="true">──── ❦ ────</div>
+  const introduction = chapter.kind === 'introduction';
+  const label = chapterLabel(chapter, index).toUpperCase();
+  let kicker = `${label} <span>—</span> ВОСПОМИНАНИЕ`;
+  if (index === chapters.length - 1) kicker = `${label} <span>—</span> ЭПИЛОГ`;
+  if (introduction) kicker = 'ПЕРЕД НАЧАЛОМ ИСТОРИИ';
+  return `<div class="page-running">КНИГА ПЕРВАЯ <span>${label}</span></div>
+    <div class="chapter-copy${introduction ? ' introduction-copy' : ''}"><p class="chapter-kicker">${kicker}</p><h2 id="chapter-title">${chapter.title}</h2><div class="chapter-ornament" aria-hidden="true">──── ❦ ────</div>
     <div class="chapter-text">${chapter.paragraphs.map((p) => `<p>${p}</p>`).join('')}</div>
-    <blockquote>${chapter.quote}</blockquote>${index === 7 ? '<div class="happy-heart" aria-label="Счастливый конец">♡</div><button class="final-close" data-book-close>Закрыть эту историю <svg class="ui-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19 19 5M5 5h14v14"/></svg></button>' : ''}</div>
+    <blockquote>${chapter.quote}</blockquote>${index === chapters.length - 1 ? '<div class="happy-heart" aria-label="Счастливый конец">♡</div><button class="final-close" data-book-close>Закрыть эту историю <svg class="ui-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19 19 5M5 5h14v14"/></svg></button>' : ''}</div>
     <span class="page-number">${index * 2 + 2}</span>`;
 }
 
@@ -142,12 +152,12 @@ export function createBook(onExit) {
     next.disabled = !accepting || position === last;
     root.setAttribute('aria-busy', String(reader.phase === 'turning' || reader.phase === 'panning'));
     const chapter = compactLayout.matches ? Math.floor(position / 2) : position;
-    progress.textContent = `${String(chapter + 1).padStart(2, '0')} / 08`;
+    progress.textContent = `${String(chapter + 1).padStart(2, '0')} / ${String(chapters.length).padStart(2, '0')}`;
     dots.querySelectorAll('[data-chapter]').forEach(dot => {
       if (Number(dot.dataset.chapter) === chapter) dot.setAttribute('aria-current', 'step');
       else dot.removeAttribute('aria-current');
     });
-    root.querySelector('.book-announcement').textContent = `Глава ${chapter + 1}. ${chapters[chapter].title}`;
+    root.querySelector('.book-announcement').textContent = `${chapterLabel(chapters[chapter], chapter)}. ${chapters[chapter].title}`;
     previous.querySelector('.nav-caption').textContent = compactLayout.matches ? 'Назад' : 'Предыдущая глава';
     next.querySelector('.nav-caption').textContent = compactLayout.matches ? 'Дальше' : 'Следующая глава';
   }
@@ -351,7 +361,7 @@ export function createBook(onExit) {
     root.dataset.chapter = String(reader.chapter);
     root.querySelector('.grip-left').setAttribute('aria-disabled', String(reader.chapter === 0));
     root.querySelector('.grip-right').setAttribute('aria-disabled', String(reader.chapter === chapters.length - 1));
-    dots.innerHTML = chapters.map((chapter, i) => `<button data-chapter="${i}" aria-label="Глава ${i + 1}: ${chapter.title}" ${i === reader.chapter ? 'aria-current="step"' : ''}><span>${numbers[i]}</span></button>`).join('');
+    dots.innerHTML = chapters.map((chapter, i) => `<button data-chapter="${i}" aria-label="${chapterLabel(chapter, i)}: ${chapter.title}" ${i === reader.chapter ? 'aria-current="step"' : ''}><span>${numbers[i]}</span></button>`).join('');
     updateNavigation();
     prepareTurns();
   }
